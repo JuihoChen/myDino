@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/">
+        <file>ubuntu.png</file>
+        <file>expander.png</file>
+        <file>arrows.png</file>
+    </qresource>
+</RCC>

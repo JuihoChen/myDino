@@ -1,0 +1,72 @@
+#include "widget.h"
+#include "./ui_widget.h"
+
+//#include <QCheckBox>
+#include <QVBoxLayout>
+#include <QSystemTrayIcon>
+
+QCheckBox *wwn[NSLOT];
+
+Widget::Widget(QWidget *parent)
+    : QWidget(parent)
+    , ui(new Ui::Widget)
+{
+    // Only when memory is allocated can the label be used,
+    // so the ui->setupUi(this) must be placed at the beginning of the function.
+    ui->setupUi(this);
+
+    ui->textBrowser->clear();  // Clear the default ui text
+
+    QVBoxLayout *layout = new QVBoxLayout;
+    layout->addWidget(ui->tabWidget);
+    layout->addWidget(ui->groupBox_0);
+    layout->addWidget(ui->groupBox_1);
+    layout->addWidget(ui->groupBox_2);
+    layout->addWidget(ui->groupBox_3);
+    //layout->addStretch();
+    layout->addWidget(ui->textBrowser);
+    setLayout(layout);
+
+    // Use a temporary QCheckBox array _wwn to assign all QCheckbox vector to the global wwn
+    QCheckBox *_wwn[NSLOT] = {
+        ui->checkBox_1,   ui->checkBox_2,   ui->checkBox_3,   ui->checkBox_4,   ui->checkBox_5,   ui->checkBox_6,   ui->checkBox_7,
+        ui->checkBox_8,   ui->checkBox_9,   ui->checkBox_10,  ui->checkBox_11,  ui->checkBox_12,  ui->checkBox_13,  ui->checkBox_14,
+        ui->checkBox_15,  ui->checkBox_16,  ui->checkBox_17,  ui->checkBox_18,  ui->checkBox_19,  ui->checkBox_20,  ui->checkBox_21,
+        ui->checkBox_22,  ui->checkBox_23,  ui->checkBox_24,  ui->checkBox_25,  ui->checkBox_26,  ui->checkBox_27,  ui->checkBox_28,
+        ui->checkBox_29,  ui->checkBox_30,  ui->checkBox_31,  ui->checkBox_32,  ui->checkBox_33,  ui->checkBox_34,  ui->checkBox_35,
+        ui->checkBox_36,  ui->checkBox_37,  ui->checkBox_38,  ui->checkBox_39,  ui->checkBox_40,  ui->checkBox_41,  ui->checkBox_42,
+        ui->checkBox_43,  ui->checkBox_44,  ui->checkBox_45,  ui->checkBox_46,  ui->checkBox_47,  ui->checkBox_48,  ui->checkBox_49,
+        ui->checkBox_50,  ui->checkBox_51,  ui->checkBox_52,  ui->checkBox_53,  ui->checkBox_54,  ui->checkBox_55,  ui->checkBox_56,
+        ui->checkBox_57,  ui->checkBox_58,  ui->checkBox_59,  ui->checkBox_60,  ui->checkBox_61,  ui->checkBox_62,  ui->checkBox_63,
+        ui->checkBox_64,  ui->checkBox_65,  ui->checkBox_66,  ui->checkBox_67,  ui->checkBox_68,  ui->checkBox_69,  ui->checkBox_70,
+        ui->checkBox_71,  ui->checkBox_72,  ui->checkBox_73,  ui->checkBox_74,  ui->checkBox_75,  ui->checkBox_76,  ui->checkBox_77,
+        ui->checkBox_78,  ui->checkBox_79,  ui->checkBox_80,  ui->checkBox_81,  ui->checkBox_82,  ui->checkBox_83,  ui->checkBox_84,
+        ui->checkBox_85,  ui->checkBox_86,  ui->checkBox_87,  ui->checkBox_88,  ui->checkBox_89,  ui->checkBox_90,  ui->checkBox_91,
+        ui->checkBox_92,  ui->checkBox_93,  ui->checkBox_94,  ui->checkBox_95,  ui->checkBox_96,  ui->checkBox_97,  ui->checkBox_98,
+        ui->checkBox_99,  ui->checkBox_100, ui->checkBox_101, ui->checkBox_102, ui->checkBox_103, ui->checkBox_104, ui->checkBox_105,
+        ui->checkBox_106, ui->checkBox_107, ui->checkBox_108, ui->checkBox_109, ui->checkBox_110, ui->checkBox_111, ui->checkBox_112
+    };
+    for (int i = 0; i < NSLOT; i++) {
+        wwn[i] = _wwn[i];
+        wwn[i]->setText("Slot " + QString::number(i+1));
+        wwn[i]->setDisabled(true);
+        wwn[i]->setStyleSheet("QCheckBox:enabled{color: black;} QCheckBox:disabled{color: grey;}");
+    }
+
+    // Configure for systray icon
+    QIcon icon = QIcon(":/arrows.png");
+    QSystemTrayIcon *trayIcon = new QSystemTrayIcon(this);
+    trayIcon->setIcon(icon);
+    trayIcon->show();
+    setWindowIcon(icon);
+}
+
+Widget::~Widget()
+{
+    delete ui;
+}
+
+void Widget::appendMessage(QString message)
+{
+    ui->textBrowser->append(message);
+}
