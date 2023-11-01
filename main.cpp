@@ -10,12 +10,6 @@ int main(int argc, char *argv[])
     w.show();
 
     w.appendMessage("Here lists the messages:");
-    //w.appendMessage("bbbb");
-    //w.appendMessage("aaaa");
-    //w.appendMessage("bbbb");
-    //w.appendMessage("aaaa");
-
-    //wwn[10]->setDisabled(false);
 
     return a.exec();
 }

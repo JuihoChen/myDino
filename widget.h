@@ -22,6 +22,9 @@ public:
 
     void appendMessage(QString message);
 
+private slots:
+    void on_pushButton_clicked();
+
 private:
     Ui::Widget *ui;
 };

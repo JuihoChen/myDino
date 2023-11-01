@@ -48,9 +48,10 @@ Widget::Widget(QWidget *parent)
     };
     for (int i = 0; i < NSLOT; i++) {
         wwn[i] = _wwn[i];
-        wwn[i]->setText("Slot " + QString::number(i+1));
-        wwn[i]->setDisabled(true);
+        wwn[i]->setText(QString("Slot %1").arg(i+1));
+        //wwn[i]->setText(QString::asprintf("Slot %03d", i+1));
         wwn[i]->setStyleSheet("QCheckBox:enabled{color: black;} QCheckBox:disabled{color: grey;}");
+        wwn[i]->setDisabled(true);
     }
 
     // Configure for systray icon
@@ -70,3 +71,11 @@ void Widget::appendMessage(QString message)
 {
     ui->textBrowser->append(message);
 }
+
+void Widget::on_pushButton_clicked()
+{
+    QCheckBox *w = wwn[7];
+    w->setDisabled(w->isEnabled());
+    w->setCheckState(Qt::CheckState::Unchecked);
+}
+
