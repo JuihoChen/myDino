@@ -4,10 +4,6 @@
 #include <QWidget>
 #include <QCheckBox>
 
-#define NSLOT   112
-
-extern QCheckBox *wwn[NSLOT];
-
 QT_BEGIN_NAMESPACE
 namespace Ui { class Widget; }
 QT_END_NAMESPACE

@@ -24,36 +24,23 @@
     <rect>
      <x>9</x>
      <y>9</y>
-     <width>1131</width>
+     <width>941</width>
      <height>131</height>
     </rect>
    </property>
    <property name="minimumSize">
     <size>
-     <width>1131</width>
+     <width>0</width>
      <height>131</height>
     </size>
    </property>
    <property name="currentIndex">
     <number>0</number>
    </property>
-   <widget class="QWidget" name="tab_sg3">
+   <widget class="QWidget" name="tab_smp">
     <attribute name="title">
-     <string>SG3</string>
+     <string>SMP</string>
     </attribute>
-    <widget class="QPushButton" name="pushButton">
-     <property name="geometry">
-      <rect>
-       <x>960</x>
-       <y>70</y>
-       <width>121</width>
-       <height>25</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Do it</string>
-     </property>
-    </widget>
     <widget class="QRadioButton" name="radioButton">
      <property name="geometry">
       <rect>
@@ -65,6 +52,9 @@
      </property>
      <property name="text">
       <string>RadioButton</string>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
      </property>
     </widget>
     <widget class="QRadioButton" name="radioButton_2">
@@ -94,7 +84,7 @@
      </property>
     </widget>
    </widget>
-   <widget class="QWidget" name="tab_smp">
+   <widget class="QWidget" name="tab_sg3">
     <property name="maximumSize">
      <size>
       <width>839</width>
@@ -102,7 +92,7 @@
      </size>
     </property>
     <attribute name="title">
-     <string>SMP</string>
+     <string>SG3</string>
     </attribute>
    </widget>
   </widget>
@@ -1669,6 +1659,69 @@ li.checked::marker { content: &quot;\2612&quot;; }
      <string>5000c500e6132d8c</string>
     </property>
    </widget>
+  </widget>
+  <widget class="QComboBox" name="comboBox">
+   <property name="geometry">
+    <rect>
+     <x>1000</x>
+     <y>50</y>
+     <width>121</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <item>
+    <property name="text">
+     <string notr="true">WWID</string>
+    </property>
+    <property name="icon">
+     <iconset theme="drive-harddisk">
+      <normaloff>.</normaloff>.</iconset>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>SDx</string>
+    </property>
+    <property name="icon">
+     <iconset theme="drive-removable-media">
+      <normaloff>.</normaloff>.</iconset>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>NLR</string>
+    </property>
+    <property name="icon">
+     <iconset theme="network-transmit-receive">
+      <normaloff>.</normaloff>.</iconset>
+    </property>
+   </item>
+  </widget>
+  <widget class="QLabel" name="label">
+   <property name="geometry">
+    <rect>
+     <x>870</x>
+     <y>52</y>
+     <width>120</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Slot labeled by:</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButton">
+   <property name="geometry">
+    <rect>
+     <x>1000</x>
+     <y>100</y>
+     <width>121</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Do it</string>
+   </property>
   </widget>
  </widget>
  <resources/>

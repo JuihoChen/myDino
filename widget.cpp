@@ -5,7 +5,9 @@
 #include <QVBoxLayout>
 #include <QSystemTrayIcon>
 
-QCheckBox *wwn[NSLOT];
+#define NSLOT   112
+
+QCheckBox *gSlot[NSLOT];
 
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
@@ -27,8 +29,8 @@ Widget::Widget(QWidget *parent)
     layout->addWidget(ui->textBrowser);
     setLayout(layout);
 
-    // Use a temporary QCheckBox array _wwn to assign all QCheckbox vector to the global wwn
-    QCheckBox *_wwn[NSLOT] = {
+    // Use a temporary QCheckBox array _slot to assign all QCheckbox vector to the global gSlot
+    QCheckBox *_slot[NSLOT] = {
         ui->checkBox_1,   ui->checkBox_2,   ui->checkBox_3,   ui->checkBox_4,   ui->checkBox_5,   ui->checkBox_6,   ui->checkBox_7,
         ui->checkBox_8,   ui->checkBox_9,   ui->checkBox_10,  ui->checkBox_11,  ui->checkBox_12,  ui->checkBox_13,  ui->checkBox_14,
         ui->checkBox_15,  ui->checkBox_16,  ui->checkBox_17,  ui->checkBox_18,  ui->checkBox_19,  ui->checkBox_20,  ui->checkBox_21,
@@ -47,11 +49,11 @@ Widget::Widget(QWidget *parent)
         ui->checkBox_106, ui->checkBox_107, ui->checkBox_108, ui->checkBox_109, ui->checkBox_110, ui->checkBox_111, ui->checkBox_112
     };
     for (int i = 0; i < NSLOT; i++) {
-        wwn[i] = _wwn[i];
-        wwn[i]->setText(QString("Slot %1").arg(i+1));
-        //wwn[i]->setText(QString::asprintf("Slot %03d", i+1));
-        wwn[i]->setStyleSheet("QCheckBox:enabled{color: black;} QCheckBox:disabled{color: grey;}");
-        wwn[i]->setDisabled(true);
+        gSlot[i] = _slot[i];
+        gSlot[i]->setText(QString("Slot %1").arg(i+1));
+        //gSlot[i]->setText(QString::asprintf("Slot %03d", i+1));
+        gSlot[i]->setStyleSheet("QCheckBox:enabled{color: black;} QCheckBox:disabled{color: grey;}");
+        gSlot[i]->setDisabled(true);
     }
 
     // Configure for systray icon
@@ -74,8 +76,8 @@ void Widget::appendMessage(QString message)
 
 void Widget::on_pushButton_clicked()
 {
-    QCheckBox *w = wwn[7];
-    w->setDisabled(w->isEnabled());
-    w->setCheckState(Qt::CheckState::Unchecked);
+    QCheckBox *s = gSlot[7];
+    s->setDisabled(s->isEnabled());
+    s->setCheckState(Qt::CheckState::Unchecked);
 }
 
