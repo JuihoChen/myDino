@@ -20,8 +20,11 @@ public:
 
 private slots:
     void on_pushButton_clicked();
+    void on_comboBox_currentIndexChanged(int index);
 
 private:
+    void refreshSlots();
+
     Ui::Widget *ui;
 };
 #endif // WIDGET_H

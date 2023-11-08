@@ -9,7 +9,5 @@ int main(int argc, char *argv[])
     w.setWindowTitle("myDino");
     w.show();
 
-    w.appendMessage("Here lists the messages:");
-
     return a.exec();
 }

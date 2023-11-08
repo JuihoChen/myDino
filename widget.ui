@@ -1664,7 +1664,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
    <property name="geometry">
     <rect>
      <x>1000</x>
-     <y>50</y>
+     <y>60</y>
      <width>121</width>
      <height>25</height>
     </rect>
@@ -1701,7 +1701,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
    <property name="geometry">
     <rect>
      <x>870</x>
-     <y>52</y>
+     <y>62</y>
      <width>120</width>
      <height>20</height>
     </rect>
@@ -1720,7 +1720,10 @@ li.checked::marker { content: &quot;\2612&quot;; }
     </rect>
    </property>
    <property name="text">
-    <string>Do it</string>
+    <string>Refresh</string>
+   </property>
+   <property name="icon">
+    <iconset theme="view-refresh"/>
    </property>
   </widget>
  </widget>

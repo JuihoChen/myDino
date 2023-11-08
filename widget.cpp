@@ -1,5 +1,6 @@
 #include "widget.h"
 #include "./ui_widget.h"
+#include "./lsscsi.h"
 
 //#include <QCheckBox>
 #include <QVBoxLayout>
@@ -62,6 +63,10 @@ Widget::Widget(QWidget *parent)
     trayIcon->setIcon(icon);
     trayIcon->show();
     setWindowIcon(icon);
+
+    appendMessage("Here lists the messages:");
+
+    list_sdevices();
 }
 
 Widget::~Widget()
@@ -76,8 +81,20 @@ void Widget::appendMessage(QString message)
 
 void Widget::on_pushButton_clicked()
 {
-    QCheckBox *s = gSlot[7];
+    /*QCheckBox *s = gSlot[7];
     s->setDisabled(s->isEnabled());
-    s->setCheckState(Qt::CheckState::Unchecked);
+    s->setCheckState(Qt::CheckState::Unchecked);*/
+
+    refreshSlots();
 }
 
+void Widget::on_comboBox_currentIndexChanged(int index)
+{
+    ui->textBrowser->append(QString("%1. ").arg(ui->comboBox->currentIndex()) + ui->comboBox->currentText());
+}
+
+void Widget::refreshSlots()
+{
+    appendMessage("Refresh slots information...");
+    list_sdevices();
+}
