@@ -27,4 +27,15 @@ private:
 
     Ui::Widget *ui;
 };
+
+class SlotInfo
+{
+public:
+    QCheckBox *cb_slot;
+    QString d_name;
+    QString wwid;
+    QString block;
+    int type;
+};
+
 #endif // WIDGET_H

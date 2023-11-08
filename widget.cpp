@@ -8,7 +8,7 @@
 
 #define NSLOT   112
 
-QCheckBox *gSlot[NSLOT];
+SlotInfo gSlot[NSLOT+4];    // 112 devices + 4 expanders
 
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
@@ -50,11 +50,11 @@ Widget::Widget(QWidget *parent)
         ui->checkBox_106, ui->checkBox_107, ui->checkBox_108, ui->checkBox_109, ui->checkBox_110, ui->checkBox_111, ui->checkBox_112
     };
     for (int i = 0; i < NSLOT; i++) {
-        gSlot[i] = _slot[i];
-        gSlot[i]->setText(QString("Slot %1").arg(i+1));
-        //gSlot[i]->setText(QString::asprintf("Slot %03d", i+1));
-        gSlot[i]->setStyleSheet("QCheckBox:enabled{color: black;} QCheckBox:disabled{color: grey;}");
-        gSlot[i]->setDisabled(true);
+        _slot[i]->setText(QString("Slot %1").arg(i+1));
+        _slot[i]->setStyleSheet("QCheckBox:enabled{color: black;} QCheckBox:disabled{color: grey;}");
+        _slot[i]->setDisabled(true);
+
+        gSlot[i].cb_slot = _slot[i];
     }
 
     // Configure for systray icon
