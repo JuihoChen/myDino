@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>1159</width>
-    <height>902</height>
+    <height>841</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -102,13 +102,13 @@
      <x>9</x>
      <y>150</y>
      <width>1131</width>
-     <height>151</height>
+     <height>136</height>
     </rect>
    </property>
    <property name="minimumSize">
     <size>
      <width>1131</width>
-     <height>151</height>
+     <height>136</height>
     </size>
    </property>
    <property name="title">
@@ -209,7 +209,7 @@
     <property name="geometry">
      <rect>
       <x>650</x>
-      <y>60</y>
+      <y>55</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -222,7 +222,7 @@
     <property name="geometry">
      <rect>
       <x>970</x>
-      <y>60</y>
+      <y>55</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -235,7 +235,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>60</y>
+      <y>55</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -248,7 +248,7 @@
     <property name="geometry">
      <rect>
       <x>170</x>
-      <y>60</y>
+      <y>55</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -261,7 +261,7 @@
     <property name="geometry">
      <rect>
       <x>490</x>
-      <y>60</y>
+      <y>55</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -274,7 +274,7 @@
     <property name="geometry">
      <rect>
       <x>810</x>
-      <y>60</y>
+      <y>55</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -287,7 +287,7 @@
     <property name="geometry">
      <rect>
       <x>330</x>
-      <y>60</y>
+      <y>55</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -300,7 +300,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>120</y>
+      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -313,7 +313,7 @@
     <property name="geometry">
      <rect>
       <x>970</x>
-      <y>120</y>
+      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -326,7 +326,7 @@
     <property name="geometry">
      <rect>
       <x>810</x>
-      <y>120</y>
+      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -339,7 +339,7 @@
     <property name="geometry">
      <rect>
       <x>650</x>
-      <y>90</y>
+      <y>80</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -352,7 +352,7 @@
     <property name="geometry">
      <rect>
       <x>970</x>
-      <y>90</y>
+      <y>80</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -365,7 +365,7 @@
     <property name="geometry">
      <rect>
       <x>170</x>
-      <y>90</y>
+      <y>80</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -378,7 +378,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>90</y>
+      <y>80</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -391,7 +391,7 @@
     <property name="geometry">
      <rect>
       <x>650</x>
-      <y>120</y>
+      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -404,7 +404,7 @@
     <property name="geometry">
      <rect>
       <x>490</x>
-      <y>90</y>
+      <y>80</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -417,7 +417,7 @@
     <property name="geometry">
      <rect>
       <x>330</x>
-      <y>120</y>
+      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -430,7 +430,7 @@
     <property name="geometry">
      <rect>
       <x>810</x>
-      <y>90</y>
+      <y>80</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -443,7 +443,7 @@
     <property name="geometry">
      <rect>
       <x>170</x>
-      <y>120</y>
+      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -456,7 +456,7 @@
     <property name="geometry">
      <rect>
       <x>490</x>
-      <y>120</y>
+      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -469,7 +469,7 @@
     <property name="geometry">
      <rect>
       <x>330</x>
-      <y>90</y>
+      <y>80</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -486,7 +486,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>790</y>
+     <y>730</y>
      <width>1131</width>
      <height>100</height>
     </rect>
@@ -515,15 +515,15 @@ li.checked::marker { content: &quot;\2612&quot;; }
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>310</y>
+     <y>295</y>
      <width>1131</width>
-     <height>151</height>
+     <height>136</height>
     </rect>
    </property>
    <property name="minimumSize">
     <size>
      <width>1131</width>
-     <height>151</height>
+     <height>136</height>
     </size>
    </property>
    <property name="title">
@@ -624,7 +624,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>650</x>
-      <y>60</y>
+      <y>55</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -637,7 +637,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>970</x>
-      <y>60</y>
+      <y>55</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -650,7 +650,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>60</y>
+      <y>55</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -663,7 +663,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>170</x>
-      <y>60</y>
+      <y>55</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -676,7 +676,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>490</x>
-      <y>60</y>
+      <y>55</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -689,7 +689,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>810</x>
-      <y>60</y>
+      <y>55</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -702,7 +702,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>330</x>
-      <y>60</y>
+      <y>55</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -715,7 +715,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>120</y>
+      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -728,7 +728,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>970</x>
-      <y>120</y>
+      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -741,7 +741,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>810</x>
-      <y>120</y>
+      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -754,7 +754,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>650</x>
-      <y>90</y>
+      <y>80</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -767,7 +767,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>970</x>
-      <y>90</y>
+      <y>80</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -780,7 +780,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>170</x>
-      <y>90</y>
+      <y>80</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -793,7 +793,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>90</y>
+      <y>80</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -806,7 +806,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>650</x>
-      <y>120</y>
+      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -819,7 +819,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>490</x>
-      <y>90</y>
+      <y>80</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -832,7 +832,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>330</x>
-      <y>120</y>
+      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -845,7 +845,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>810</x>
-      <y>90</y>
+      <y>80</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -858,7 +858,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>170</x>
-      <y>120</y>
+      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -871,7 +871,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>490</x>
-      <y>120</y>
+      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -884,7 +884,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>330</x>
-      <y>90</y>
+      <y>80</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -898,15 +898,15 @@ li.checked::marker { content: &quot;\2612&quot;; }
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>470</y>
+     <y>440</y>
      <width>1131</width>
-     <height>151</height>
+     <height>136</height>
     </rect>
    </property>
    <property name="minimumSize">
     <size>
      <width>1131</width>
-     <height>151</height>
+     <height>136</height>
     </size>
    </property>
    <property name="title">
@@ -1007,7 +1007,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>650</x>
-      <y>60</y>
+      <y>55</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1020,7 +1020,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>970</x>
-      <y>60</y>
+      <y>55</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1033,7 +1033,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>60</y>
+      <y>55</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1046,7 +1046,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>170</x>
-      <y>60</y>
+      <y>55</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1059,7 +1059,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>490</x>
-      <y>60</y>
+      <y>55</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1072,7 +1072,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>810</x>
-      <y>60</y>
+      <y>55</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1085,7 +1085,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>330</x>
-      <y>60</y>
+      <y>55</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1098,7 +1098,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>120</y>
+      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1111,7 +1111,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>970</x>
-      <y>120</y>
+      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1124,7 +1124,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>810</x>
-      <y>120</y>
+      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1137,7 +1137,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>650</x>
-      <y>90</y>
+      <y>80</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1150,7 +1150,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>970</x>
-      <y>90</y>
+      <y>80</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1163,7 +1163,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>170</x>
-      <y>90</y>
+      <y>80</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1176,7 +1176,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>90</y>
+      <y>80</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1189,7 +1189,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>650</x>
-      <y>120</y>
+      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1202,7 +1202,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>490</x>
-      <y>90</y>
+      <y>80</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1215,7 +1215,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>330</x>
-      <y>120</y>
+      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1228,7 +1228,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>810</x>
-      <y>90</y>
+      <y>80</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1241,7 +1241,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>170</x>
-      <y>120</y>
+      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1254,7 +1254,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>490</x>
-      <y>120</y>
+      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1267,7 +1267,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>330</x>
-      <y>90</y>
+      <y>80</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1281,15 +1281,15 @@ li.checked::marker { content: &quot;\2612&quot;; }
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>630</y>
+     <y>585</y>
      <width>1131</width>
-     <height>151</height>
+     <height>136</height>
     </rect>
    </property>
    <property name="minimumSize">
     <size>
      <width>1131</width>
-     <height>151</height>
+     <height>136</height>
     </size>
    </property>
    <property name="title">
@@ -1390,7 +1390,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>650</x>
-      <y>60</y>
+      <y>55</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1403,7 +1403,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>970</x>
-      <y>60</y>
+      <y>55</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1416,7 +1416,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>60</y>
+      <y>55</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1429,7 +1429,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>170</x>
-      <y>60</y>
+      <y>55</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1442,7 +1442,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>490</x>
-      <y>60</y>
+      <y>55</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1455,7 +1455,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>810</x>
-      <y>60</y>
+      <y>55</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1468,7 +1468,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>330</x>
-      <y>60</y>
+      <y>55</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1481,7 +1481,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>120</y>
+      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1494,7 +1494,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>970</x>
-      <y>120</y>
+      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1507,7 +1507,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>810</x>
-      <y>120</y>
+      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1520,7 +1520,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>650</x>
-      <y>90</y>
+      <y>80</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1533,7 +1533,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>970</x>
-      <y>90</y>
+      <y>80</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1546,7 +1546,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>170</x>
-      <y>90</y>
+      <y>80</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1559,7 +1559,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>90</y>
+      <y>80</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1572,7 +1572,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>650</x>
-      <y>120</y>
+      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1585,7 +1585,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>490</x>
-      <y>90</y>
+      <y>80</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1598,7 +1598,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>330</x>
-      <y>120</y>
+      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1611,7 +1611,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>810</x>
-      <y>90</y>
+      <y>80</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1624,7 +1624,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>170</x>
-      <y>120</y>
+      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1637,7 +1637,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>490</x>
-      <y>120</y>
+      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1650,7 +1650,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="geometry">
      <rect>
       <x>330</x>
-      <y>90</y>
+      <y>80</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1723,7 +1723,8 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <string>Refresh</string>
    </property>
    <property name="icon">
-    <iconset theme="view-refresh"/>
+    <iconset theme="view-refresh">
+     <normaloff>.</normaloff>.</iconset>
    </property>
   </widget>
  </widget>
