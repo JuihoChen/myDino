@@ -357,9 +357,9 @@ index_expander(const char * dir_name, const char * devname)
     return -1;
 }
 
-/* This is a function for device's slot index */
+/* This is a function to determine the distance between device and the expander */
 int
-compute_device_index(const char * device, const char * expander, int iexp)
+compute_device_index(const char * device, const char * expander)
 {
     struct addr_hctl dev_hctl;
     struct addr_hctl exp_hctl;
@@ -370,13 +370,10 @@ compute_device_index(const char * device, const char * expander, int iexp)
     if (! parse_colon_list(expander, &exp_hctl)) {
         return -1;
     }
-    if (dev_hctl.h == exp_hctl.h) {
-        if (dev_hctl.c == exp_hctl.c) {
-            int d = exp_hctl.t - dev_hctl.t;
-            return (iexp + 1) * 28 - d;
-        }
+    if (dev_hctl.h != exp_hctl.h || dev_hctl.c != exp_hctl.c) {
+        return -1;
     }
-    return -1;
+    return exp_hctl.t - dev_hctl.t;
 }
 
 /* List SCSI devices (LUs). */
