@@ -6,6 +6,11 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+#include "widget.h"
+#include <QString>
 
 #ifdef PATH_MAX
 #define LMAX_PATH PATH_MAX
@@ -26,6 +31,8 @@
 static const char * sysfsroot = "/sys";
 static const char * bus_scsi_devs = "/bus/scsi/devices";
 
+static char errpath[LMAX_PATH];
+
 /* For SCSI 'h' is host_num, 'c' is channel, 't' is target, 'l' is LUN is
  * uint64_t and lun_arr[8] is LUN as 8 byte array. For NVMe, h=0x7fff
  * (NVME_HOST_NUM) and displayed as 'N'; 'c' is Linux's NVMe controller
@@ -39,6 +46,36 @@ struct addr_hctl {
     int t;
     uint64_t l;           /* SCSI: Linux word flipped; NVME: uint32_t */
     uint8_t lun_arr[8];   /* T10, SAM-5 order; NVME: little endian */
+};
+
+static const char * scsi_device_types[] =
+{
+    "Direct-Access",
+    "Sequential-Access",
+    "Printer",
+    "Processor",
+    "Write-once",
+    "CD-ROM",
+    "Scanner",
+    "Optical memory",
+    "Medium Changer",
+    "Communications",
+    "Unknown (0xa)",
+    "Unknown (0xb)",
+    "Storage array",
+    "Enclosure",
+    "Simplified direct-access",
+    "Optical card read/writer",
+    "Bridge controller",
+    "Object based storage",
+    "Automation Drive interface",
+    "Security manager",
+    "Zoned Block",
+    "Reserved (0x15)", "Reserved (0x16)", "Reserved (0x17)",
+    "Reserved (0x18)", "Reserved (0x19)", "Reserved (0x1a)",
+    "Reserved (0x1b)", "Reserved (0x1c)", "Reserved (0x1e)",
+    "Well known LU",
+    "No device",
 };
 
 #ifdef __GNUC__
@@ -65,6 +102,37 @@ static inline void sg_put_unaligned_be16(uint16_t val, void *p)
     uint16_t u = bswap_16(val);
 
     memcpy(p, &u, 2);
+}
+
+/* Returns true if dirent entry is either a symlink or a directory
+ * starting_with given name. If starting_with is NULL choose all that are
+ * either symlinks or directories other than . or .. (own directory or
+ * parent) . Can be tricked cause symlink could point to .. (parent), for
+ * example. Otherwise return false. */
+static bool
+dir_or_link(const struct dirent * s, const char * starting_with)
+{
+    if (DT_LNK == s->d_type) {
+        if (starting_with)
+            return 0 == strncmp(s->d_name, starting_with, strlen(starting_with));
+        return true;
+    } else if (DT_DIR != s->d_type)
+        return false;
+    else {  /* Assume can't have zero length directory name */
+        size_t len = strlen(s->d_name);
+
+        if (starting_with)
+            return 0 == strncmp(s->d_name, starting_with, strlen(starting_with));
+        if (len > 2)
+            return true;
+        if ('.' == s->d_name[0]) {
+            if (1 == len)
+                return false;   /* this directory: '.' */
+            else if ('.' == s->d_name[1])
+                return false;   /* parent: '..' */
+        }
+        return true;
+    }
 }
 
 /* Copies (dest_maxlen - 1) or less chars from src to dest. Less chars are
@@ -184,37 +252,172 @@ sdev_scandir_sort(const struct dirent ** a, const struct dirent ** b)
     return cmp_hctl(&left_hctl, &right_hctl);
 }
 
-/* List one SCSI device (LU) on a line. */
-static void
-one_sdev_entry(const char * dir_name, const char * devname)
+static int
+enclosure_dir_scan_select(const struct dirent * s)
 {
-    printf("%s/%s\n", dir_name, devname);
+    if (dir_or_link(s, "enclosure")) {
+        //my_strcopy(enclosure_device.name, s->d_name, LMAX_NAME);
+        //enclosure_device.ft = FT_CHAR;  /* dummy */
+        //enclosure_device.d_type =  s->d_type;
+        return 1;
+    }
+    return 0;
+}
+
+/* Return true for directory entry that is link or directory (other than a
+ * directory name starting with dot) that contains "enclosure_device".
+ * Else return false.  */
+static bool
+enclosure_scan(const char * dir_name)
+{
+    int num, k;
+    struct dirent ** namelist;
+
+    num = scandir(dir_name, &namelist, enclosure_dir_scan_select, NULL);
+    if (num < 0) {
+        snprintf(errpath, LMAX_PATH, "%s: scandir: %s", __func__, dir_name);
+        perror(errpath);
+        return false;
+    }
+    for (k = 0; k < num; ++k)
+        free(namelist[k]);
+    free(namelist);
+    return !! num;
+}
+
+/* If 'dir_name'/'base_name' is a directory chdir to it. If that is successful
+   return true, else false */
+static bool
+if_directory_chdir(const char * dir_name, const char * base_name)
+{
+    char b[LMAX_PATH];
+    struct stat a_stat;
+
+    snprintf(b, sizeof(b), "%s/%s", dir_name, base_name);
+    if (stat(b, &a_stat) < 0)
+        return false;
+    if (S_ISDIR(a_stat.st_mode)) {
+        if (chdir(b) < 0)
+            return false;
+        return true;
+    }
+    return false;
+}
+
+/* If 'dir_name'/'base_name' is found places corresponding value in 'value'
+ * and returns true . Else returns false.
+ */
+static bool
+get_value(const char * dir_name, const char * base_name, char * value,
+          int max_value_len)
+{
+    int len;
+    FILE * f;
+    char b[LMAX_PATH];
+
+    snprintf(b, sizeof(b), "%s/%s", dir_name, base_name);
+    if (NULL == (f = fopen(b, "r"))) {
+        return false;
+    }
+    if (NULL == fgets(value, max_value_len, f)) {
+        /* assume empty */
+        value[0] = '\0';
+        fclose(f);
+        return true;
+    }
+    len = strlen(value);
+    if ((len > 0) && (value[len - 1] == '\n'))
+        value[len - 1] = '\0';
+    fclose(f);
+    return true;
+}
+
+static int
+index_expander(const char * dir_name, const char * devname)
+{
+    int vlen;
+    char wd[LMAX_PATH];
+    char value[LMAX_NAME];
+
+    snprintf(wd, sizeof(wd), "%s/%s/enclosure/%s", dir_name, devname, devname);
+
+    vlen = sizeof(value);
+    if (get_value(wd, "id", value, vlen)) {
+        printf("Found an enclosure wwid: %s\n", value);
+        int len = strlen(value) - 2;
+        if (QString(value + len).toInt(0, 16) <= 0x3f)
+            return 0;
+        else if (QString(value + len).toInt(0, 16) <= 0x7f)
+            return 1;
+        else if (QString(value + len).toInt(0, 16) <= 0xbf)
+            return 2;
+        else
+            return 3;
+    }
+    return -1;
+}
+
+/* This is a function for device's slot index */
+int
+compute_device_index(const char * device, const char * expander, int iexp)
+{
+    struct addr_hctl dev_hctl;
+    struct addr_hctl exp_hctl;
+
+    if (! parse_colon_list(device, &dev_hctl)) {
+        return -1;
+    }
+    if (! parse_colon_list(expander, &exp_hctl)) {
+        return -1;
+    }
+    if (dev_hctl.h == exp_hctl.h) {
+        if (dev_hctl.c == exp_hctl.c) {
+            int d = exp_hctl.t - dev_hctl.t;
+            return (iexp + 1) * 28 - d;
+        }
+    }
+    return -1;
 }
 
 /* List SCSI devices (LUs). */
 void
-list_sdevices()
+list_sdevices(Widget* pw)
 {
-    int num, k;
+    int num, k, prev;
     struct dirent ** namelist;
     char buff[LMAX_DEVPATH];
     char name[LMAX_NAME];
+    QString path;
+
+    printf("listing...\n");
 
     snprintf(buff, sizeof(buff), "%s%s", sysfsroot, bus_scsi_devs);
 
     num = scandir(buff, &namelist, sdev_dir_scan_select, sdev_scandir_sort);
     if (num < 0) {  /* scsi mid level may not be loaded */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wformat-truncation"
-        snprintf(name, sizeof(name), "%s: scandir: %s", __func__, buff);
-#pragma GCC diagnostic pop
-        perror(name);
+        path = QString("%1: scandir: %2").arg(__func__, buff);
+        perror(path.toStdString().c_str());
         printf("SCSI mid level module may not be loaded\n");
     }
 
-    for (k = 0; k < num; ++k) {
+    for (prev = k = 0; k < num; ++k) {
         my_strcopy(name, namelist[k]->d_name, sizeof(name));
-        one_sdev_entry(buff, name);
+        path = QString("%1/%2").arg(buff, name);
+        if (enclosure_scan(path.toStdString().c_str())) {
+            int e = index_expander(buff, name);
+            if (e < 0) {
+                pw->appendMessage(QString("error: cannot get expander[%1] wwid!").arg(name));
+            } else {
+                for (; prev < k; ++prev) {
+                    gDevices.setSlot(buff, namelist[prev]->d_name, namelist[k]->d_name, e);
+                }
+                gControllers.setController(buff, namelist[k]->d_name, e);
+                prev = k + 1;
+            }
+        }
+    }
+
+    for (k = 0; k < num; ++k) {
         free(namelist[k]);
     }
     free(namelist);

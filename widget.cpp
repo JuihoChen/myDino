@@ -7,8 +7,55 @@
 #include <QSystemTrayIcon>
 
 #define NSLOT   112
+#define NEXPDR  4
 
-SlotInfo gSlot[NSLOT+4];    // 112 devices + 4 expanders
+_ST_SLOTINFO gSlot[NSLOT];
+_ST_GBOXINFO gExpander[NEXPDR];
+
+DeviceFunc gDevices(gSlot);
+ExpanderFunc gControllers(gExpander);
+
+void DeviceFunc::clear()
+{
+    for (int i = 0; i < NSLOT; i++) {
+        pSlotInfo[i].cb_slot->setText(QString("Slot %1").arg(i+1));
+        pSlotInfo[i].cb_slot->setStyleSheet("QCheckBox:enabled{color: black;} QCheckBox:disabled{color: grey;}");
+        pSlotInfo[i].cb_slot->setDisabled(true);
+        pSlotInfo[i].cb_slot->setCheckState(Qt::CheckState::Unchecked);
+        pSlotInfo[i].block.clear();
+        pSlotInfo[i].d_name.clear();
+        pSlotInfo[i].wwid.clear();
+    }
+    myCount = 0;
+}
+
+void DeviceFunc::setSlot(QString path, QString device, QString expander, int iexp)
+{
+    int sl = compute_device_index(device.toStdString().c_str(), expander.toStdString().c_str(), iexp);
+    if (sl >= 0) {
+        pSlotInfo[sl].cb_slot->setText(device);
+        pSlotInfo[sl].cb_slot->setEnabled(true);
+        pSlotInfo[sl].d_name = device;
+        myCount++;
+     }
+}
+
+void ExpanderFunc::clear()
+{
+     for (int i = 0; i < NEXPDR; i++) {
+        pGboxInfo[i].gbox->setTitle(QString("Expander-%1").arg(i+1));
+        pGboxInfo[i].d_name.clear();
+        pGboxInfo[i].wwid.clear();
+     }
+     myCount = 0;
+}
+
+void ExpanderFunc::setController(QString path, QString expander, int iexp)
+{
+     QString title = pGboxInfo[iexp].gbox->title();
+     pGboxInfo[iexp].gbox->setTitle(title + QString(" [%1]").arg(expander));
+     myCount++;
+}
 
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
@@ -50,12 +97,14 @@ Widget::Widget(QWidget *parent)
         ui->checkBox_106, ui->checkBox_107, ui->checkBox_108, ui->checkBox_109, ui->checkBox_110, ui->checkBox_111, ui->checkBox_112
     };
     for (int i = 0; i < NSLOT; i++) {
-        _slot[i]->setText(QString("Slot %1").arg(i+1));
-        _slot[i]->setStyleSheet("QCheckBox:enabled{color: black;} QCheckBox:disabled{color: grey;}");
-        _slot[i]->setDisabled(true);
-
         gSlot[i].cb_slot = _slot[i];
     }
+
+    // Setup Groubox 0-3 to be globally accessed
+    gExpander[0].gbox = ui->groupBox_0;
+    gExpander[1].gbox = ui->groupBox_1;
+    gExpander[2].gbox = ui->groupBox_2;
+    gExpander[3].gbox = ui->groupBox_3;
 
     // Configure for systray icon
     QIcon icon = QIcon(":/arrows.png");
@@ -66,7 +115,9 @@ Widget::Widget(QWidget *parent)
 
     appendMessage("Here lists the messages:");
 
-    list_sdevices();
+    gDevices.clear();
+    gControllers.clear();
+    list_sdevices(this);
 }
 
 Widget::~Widget()
@@ -81,10 +132,6 @@ void Widget::appendMessage(QString message)
 
 void Widget::on_pushButton_clicked()
 {
-    /*QCheckBox *s = gSlot[7];
-    s->setDisabled(s->isEnabled());
-    s->setCheckState(Qt::CheckState::Unchecked);*/
-
     refreshSlots();
 }
 
@@ -96,5 +143,8 @@ void Widget::on_comboBox_currentIndexChanged(int index)
 void Widget::refreshSlots()
 {
     appendMessage("Refresh slots information...");
-    list_sdevices();
+    gDevices.clear();
+    gControllers.clear();
+    list_sdevices(this);
+    appendMessage(QString::asprintf("Found %d expanders and %d devices", gControllers.count(), gDevices.count()));
 }
