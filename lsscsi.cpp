@@ -345,14 +345,8 @@ index_expander(const char * dir_name, const char * devname)
     if (get_value(wd, "id", value, vlen)) {
         printf("Found an enclosure wwid: %s\n", value);
         int len = strlen(value) - 2;
-        if (QString(value + len).toInt(0, 16) <= 0x3f)
-            return 0;
-        else if (QString(value + len).toInt(0, 16) <= 0x7f)
-            return 1;
-        else if (QString(value + len).toInt(0, 16) <= 0xbf)
-            return 2;
-        else
-            return 3;
+        unsigned i = QString(value + len).toInt(0, 16) >> 6;  // the last byte: 3F, 7F, BF or FF
+        return i <= 3 ? i : -1;
     }
     return -1;
 }

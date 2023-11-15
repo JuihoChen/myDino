@@ -34,7 +34,7 @@ void DeviceFunc::setSlot(QString path, QString device, QString expander, int iex
     int sl = compute_device_index(device.toStdString().c_str(), expander.toStdString().c_str());
 
     // the device should be within this expander's domain
-    if (sl >= 0 && sl <= 28) {
+    if (sl > 0 && sl <= 28) {
         sl = (iexp + 1) * 28 - sl;
         pSlotInfo[sl].cb_slot->setText(device);
         pSlotInfo[sl].cb_slot->setEnabled(true);
