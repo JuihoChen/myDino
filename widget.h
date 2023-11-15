@@ -15,8 +15,7 @@ class ExpanderFunc;
 extern DeviceFunc gDevices;
 extern ExpanderFunc gControllers;
 
-typedef struct
-{
+typedef struct {
     QCheckBox *cb_slot;
     QString d_name;
     QString wwid;
@@ -33,6 +32,7 @@ public:
 
     void clear();
     void setSlot(QString path, QString device, QString expander, int iexp);
+    void setSlotLabel(int sl);
     int count() { return myCount; }
 
 private:
@@ -40,8 +40,7 @@ private:
     int myCount;
 };
 
-typedef struct
-{
+typedef struct {
     QGroupBox *gbox;
     QString d_name;
     QString wwid;

@@ -15,6 +15,8 @@ _ST_GBOXINFO gExpander[NEXPDR];
 DeviceFunc gDevices(gSlot);
 ExpanderFunc gControllers(gExpander);
 
+QComboBox *gCb = nullptr;
+
 void DeviceFunc::clear()
 {
     for (int i = 0; i < NSLOT; i++) {
@@ -34,30 +36,76 @@ void DeviceFunc::setSlot(QString path, QString device, QString expander, int iex
     int sl = compute_device_index(device.toStdString().c_str(), expander.toStdString().c_str());
 
     // the device should be within this expander's domain
-    if (sl > 0 && sl <= 28) {
-        sl = (iexp + 1) * 28 - sl;
-        pSlotInfo[sl].cb_slot->setText(device);
-        pSlotInfo[sl].cb_slot->setEnabled(true);
-        pSlotInfo[sl].d_name = device;
-        myCount++;
-     }
+    if (sl <= 0 || sl > 28 || iexp < 0 || iexp > 3) {
+        printf("Device [%s] setting error!", device.toStdString().c_str());
+        return;
+    }
+
+    sl = (iexp + 1) * 28 - sl;
+
+    pSlotInfo[sl].d_name = device;
+
+    // Get wwid of this device
+    QString wd = path.append("/%1").arg(device);
+    if (false == get_myValue(wd, "wwid", pSlotInfo[sl].wwid)) {
+        pSlotInfo[sl].wwid.clear();
+    }
+
+    // Get block name of this device
+    wd += "/block";
+    pSlotInfo[sl].block = get_blockname(wd);
+
+    pSlotInfo[sl].cb_slot->setEnabled(true);
+    setSlotLabel(sl);
+    myCount++;
+}
+
+void DeviceFunc::setSlotLabel(int sl)
+{
+    if (gCb && !pSlotInfo[sl].d_name.isEmpty())
+    switch (gCb->currentIndex())
+    {
+    case 0:
+        pSlotInfo[sl].cb_slot->setText(pSlotInfo[sl].wwid.right(16));
+        break;
+    case 1:
+        pSlotInfo[sl].cb_slot->setText(QString("%1. ").arg(sl+1) + pSlotInfo[sl].block);
+        break;
+    default:
+        break;
+    }
 }
 
 void ExpanderFunc::clear()
 {
-     for (int i = 0; i < NEXPDR; i++) {
+    for (int i = 0; i < NEXPDR; i++) {
         pGboxInfo[i].gbox->setTitle(QString("Expander-%1").arg(i+1));
         pGboxInfo[i].d_name.clear();
         pGboxInfo[i].wwid.clear();
-     }
-     myCount = 0;
+    }
+    myCount = 0;
 }
 
 void ExpanderFunc::setController(QString path, QString expander, int iexp)
 {
-     QString title = pGboxInfo[iexp].gbox->title();
-     pGboxInfo[iexp].gbox->setTitle(title + QString(" [%1]").arg(expander));
-     myCount++;
+    // Only expanders 0-3 should be taken care of...
+    if (iexp < 0 || iexp > 3) {
+        printf("Expander [%s] setting error!", expander.toStdString().c_str());
+        return;
+    }
+
+    pGboxInfo[iexp].d_name = expander;
+
+    // Get wwid of this enclosure
+    QString wd = path.append("/%1/enclosure/%1").arg(expander);
+    if (false == get_myValue(wd, "id", pGboxInfo[iexp].wwid)) {
+        pGboxInfo[iexp].wwid.clear();
+    }
+
+    QString title = pGboxInfo[iexp].gbox->title();
+    pGboxInfo[iexp].gbox->setTitle(title + QString(" [%1]").arg(pGboxInfo[iexp].wwid.right(16)));
+
+    myCount++;
 }
 
 Widget::Widget(QWidget *parent)
@@ -118,6 +166,7 @@ Widget::Widget(QWidget *parent)
 
     appendMessage("Here lists the messages:");
 
+    gCb = ui->comboBox;
     gDevices.clear();
     gControllers.clear();
     list_sdevices(this);
@@ -140,7 +189,10 @@ void Widget::on_pushButton_clicked()
 
 void Widget::on_comboBox_currentIndexChanged(int index)
 {
-    ui->textBrowser->append(QString("%1. ").arg(ui->comboBox->currentIndex()) + ui->comboBox->currentText());
+    //ui->textBrowser->append(QString("%1. ").arg(ui->comboBox->currentIndex()) + ui->comboBox->currentText());
+    for (int i=0; i < NSLOT; i++) {
+        gDevices.setSlotLabel(i);
+    }
 }
 
 void Widget::refreshSlots()

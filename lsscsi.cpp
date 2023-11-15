@@ -12,6 +12,10 @@
 #include "widget.h"
 #include <QString>
 
+#define FT_OTHER 0
+#define FT_BLOCK 1
+#define FT_CHAR 2
+
 #ifdef PATH_MAX
 #define LMAX_PATH PATH_MAX
 #else
@@ -47,6 +51,14 @@ struct addr_hctl {
     uint64_t l;           /* SCSI: Linux word flipped; NVME: uint32_t */
     uint8_t lun_arr[8];   /* T10, SAM-5 order; NVME: little endian */
 };
+
+struct item_t {
+    char name[LMAX_NAME];
+    int ft;
+    int d_type;
+};
+
+static struct item_t aa_first;
 
 static const char * scsi_device_types[] =
 {
@@ -206,6 +218,42 @@ cmp_hctl(const struct addr_hctl * le, const struct addr_hctl * ri)
         return (le->h < ri->h) ? -1 : 1;
 }
 
+/* Return 1 for directory entry that is link or directory (other than
+ * a directory name starting with dot). Else return 0.  */
+static int
+first_dir_scan_select(const struct dirent * s)
+{
+    if (FT_OTHER != aa_first.ft)
+        return 0;
+    if (! dir_or_link(s, NULL))
+        return 0;
+    my_strcopy(aa_first.name, s->d_name, LMAX_NAME);
+    aa_first.ft = FT_CHAR;  /* dummy */
+    aa_first.d_type =  s->d_type;
+    return 1;
+}
+
+/* scan for directory entry that is either a symlink or a directory. Returns
+ * number found or -1 for error. */
+static int
+scan_for_first(const char * dir_name)
+{
+    int num, k;
+    struct dirent ** namelist;
+
+    aa_first.ft = FT_OTHER;
+    num = scandir(dir_name, &namelist, first_dir_scan_select, NULL);
+    if (num < 0) {
+        snprintf(errpath, LMAX_PATH, "%s: scandir: %s", __func__, dir_name);
+        perror(errpath);
+        return -1;
+    }
+    for (k = 0; k < num; ++k)
+        free(namelist[k]);
+    free(namelist);
+    return num;
+}
+
 static int
 sdev_dir_scan_select(const struct dirent * s)
 {
@@ -349,6 +397,31 @@ index_expander(const char * dir_name, const char * devname)
         return i <= 3 ? i : -1;
     }
     return -1;
+}
+
+bool
+get_myValue(QString dir_name, QString name, QString& myvalue)
+{
+    int vlen;
+    char value[LMAX_NAME];
+
+    vlen = sizeof(value);
+    if (get_value(dir_name.toStdString().c_str(), name.toStdString().c_str(), value, vlen)) {
+        myvalue = value;
+        return true;
+    }
+    return false;
+}
+
+QString
+get_blockname(QString dir_name)
+{
+    if (1 == scan_for_first(dir_name.toStdString().c_str()))
+        return aa_first.name;
+    else {
+        printf("unexpected scan_for_first error");
+        return "";
+    }
 }
 
 /* This is a function to determine the distance between device and the expander */
