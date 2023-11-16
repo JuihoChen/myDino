@@ -187,6 +187,11 @@ void Widget::on_pushButton_clicked()
     refreshSlots();
 }
 
+void Widget::on_pushButton_2_clicked()
+{
+    ui->textBrowser->clear();  // Clear the default ui text
+}
+
 void Widget::on_comboBox_currentIndexChanged(int index)
 {
     //ui->textBrowser->append(QString("%1. ").arg(ui->comboBox->currentIndex()) + ui->comboBox->currentText());
