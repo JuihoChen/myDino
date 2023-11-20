@@ -37,7 +37,7 @@ void DeviceFunc::setSlot(QString path, QString device, QString expander, int iex
 
     // the device should be within this expander's domain
     if (sl <= 0 || sl > 28 || iexp < 0 || iexp > 3) {
-        printf("Device [%s] setting error!", device.toStdString().c_str());
+        printf("Device [%s] setting error!\n", device.toStdString().c_str());
         return;
     }
 
@@ -72,6 +72,7 @@ void DeviceFunc::setSlotLabel(int sl)
         pSlotInfo[sl].cb_slot->setText(QString("%1. ").arg(sl+1) + pSlotInfo[sl].block);
         break;
     default:
+        pSlotInfo[sl].cb_slot->setText(QString("%1. ").arg(sl+1) + pSlotInfo[sl].d_name);
         break;
     }
 }
@@ -90,7 +91,7 @@ void ExpanderFunc::setController(QString path, QString expander, int iexp)
 {
     // Only expanders 0-3 should be taken care of...
     if (iexp < 0 || iexp > 3) {
-        printf("Expander [%s] setting error!", expander.toStdString().c_str());
+        printf("Expander [%s] setting error!\n", expander.toStdString().c_str());
         return;
     }
 
@@ -103,7 +104,8 @@ void ExpanderFunc::setController(QString path, QString expander, int iexp)
     }
 
     QString title = pGboxInfo[iexp].gbox->title();
-    pGboxInfo[iexp].gbox->setTitle(title + QString(" [%1]").arg(pGboxInfo[iexp].wwid.right(16)));
+    pGboxInfo[iexp].gbox->setTitle(
+        title + QString(" [%1]").arg(pGboxInfo[iexp].wwid.right(16).toUpper()));
 
     myCount++;
 }

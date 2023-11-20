@@ -419,7 +419,7 @@ get_blockname(QString dir_name)
     if (1 == scan_for_first(dir_name.toStdString().c_str()))
         return aa_first.name;
     else {
-        printf("unexpected scan_for_first error");
+        printf("unexpected scan_for_first error\n");
         return "";
     }
 }
