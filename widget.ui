@@ -1660,7 +1660,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     </property>
    </widget>
   </widget>
-  <widget class="QComboBox" name="comboBox">
+  <widget class="QComboBox" name="cbxSlot">
    <property name="geometry">
     <rect>
      <x>1000</x>
@@ -1710,7 +1710,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <string>Slot labeled by:</string>
    </property>
   </widget>
-  <widget class="QPushButton" name="pushButton">
+  <widget class="QPushButton" name="btnRefresh">
    <property name="geometry">
     <rect>
      <x>1000</x>
@@ -1727,7 +1727,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
      <normaloff>.</normaloff>.</iconset>
    </property>
   </widget>
-  <widget class="QPushButton" name="pushButton_2">
+  <widget class="QPushButton" name="btnClearTB">
    <property name="geometry">
     <rect>
      <x>1000</x>
@@ -1740,7 +1740,8 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <string>Clear</string>
    </property>
    <property name="icon">
-    <iconset theme="document-new"/>
+    <iconset theme="document-new">
+     <normaloff>.</normaloff>.</iconset>
    </property>
   </widget>
  </widget>

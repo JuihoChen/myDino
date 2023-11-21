@@ -2,7 +2,6 @@
 #include "./ui_widget.h"
 #include "./lsscsi.h"
 
-//#include <QCheckBox>
 #include <QVBoxLayout>
 #include <QSystemTrayIcon>
 
@@ -159,6 +158,10 @@ Widget::Widget(QWidget *parent)
     gExpander[2].gbox = ui->groupBox_2;
     gExpander[3].gbox = ui->groupBox_3;
 
+    connect(ui->cbxSlot, &QComboBox::currentIndexChanged, this, &Widget::cbxSlotIndexChanged);
+    connect(ui->btnRefresh, &QPushButton::clicked, this, &Widget::btnRefreshClicked);
+    connect(ui->btnClearTB, &QPushButton::clicked, this, &Widget::btnClearTBClicked);
+
     // Configure for systray icon
     QIcon icon = QIcon(":/arrows.png");
     QSystemTrayIcon *trayIcon = new QSystemTrayIcon(this);
@@ -168,7 +171,7 @@ Widget::Widget(QWidget *parent)
 
     appendMessage("Here lists the messages:");
 
-    gCb = ui->comboBox;
+    gCb = ui->cbxSlot;
     gDevices.clear();
     gControllers.clear();
     list_sdevices(this);
@@ -184,20 +187,19 @@ void Widget::appendMessage(QString message)
     ui->textBrowser->append(message);
 }
 
-void Widget::on_pushButton_clicked()
+void Widget::btnRefreshClicked()
 {
     refreshSlots();
 }
 
-void Widget::on_pushButton_2_clicked()
+void Widget::btnClearTBClicked()
 {
     ui->textBrowser->clear();  // Clear the default ui text
 }
 
-void Widget::on_comboBox_currentIndexChanged(int index)
+void Widget::cbxSlotIndexChanged(int index)
 {
-    //ui->textBrowser->append(QString("%1. ").arg(ui->comboBox->currentIndex()) + ui->comboBox->currentText());
-    for (int i=0; i < NSLOT; i++) {
+    for (int i=0; i<NSLOT; i++) {
         gDevices.setSlotLabel(i);
     }
 }

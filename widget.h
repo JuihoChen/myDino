@@ -74,9 +74,9 @@ public:
     void appendMessage(QString message);
 
 private slots:
-    void on_pushButton_clicked();
-    void on_pushButton_2_clicked();
-    void on_comboBox_currentIndexChanged(int index);
+    void btnRefreshClicked();
+    void btnClearTBClicked();
+    void cbxSlotIndexChanged(int index);
 
 private:
     void refreshSlots();
