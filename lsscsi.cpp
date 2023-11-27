@@ -32,6 +32,8 @@
 
 #define UINT64_LAST ((uint64_t)~0)
 
+static bool hba9500 = false;
+
 static const char * sysfsroot = "/sys";
 static const char * bus_scsi_devs = "/bus/scsi/devices";
 
@@ -59,6 +61,7 @@ struct item_t {
 };
 
 static struct item_t aa_first;
+static struct item_t enclosure_device;
 
 static const char * scsi_device_types[] =
 {
@@ -229,7 +232,7 @@ first_dir_scan_select(const struct dirent * s)
         return 0;
     my_strcopy(aa_first.name, s->d_name, LMAX_NAME);
     aa_first.ft = FT_CHAR;  /* dummy */
-    aa_first.d_type =  s->d_type;
+    aa_first.d_type = s->d_type;
     return 1;
 }
 
@@ -304,9 +307,13 @@ static int
 enclosure_dir_scan_select(const struct dirent * s)
 {
     if (dir_or_link(s, "enclosure")) {
-        //my_strcopy(enclosure_device.name, s->d_name, LMAX_NAME);
-        //enclosure_device.ft = FT_CHAR;  /* dummy */
-        //enclosure_device.d_type =  s->d_type;
+        if (dir_or_link(s, "enclosure_device")) {
+            hba9500 = true;
+            my_strcopy(enclosure_device.name, s->d_name, LMAX_NAME);
+            enclosure_device.ft = FT_CHAR;  /* dummy */
+            enclosure_device.d_type = s->d_type;
+            return 0;
+        }
         return 1;
     }
     return 0;
@@ -472,12 +479,16 @@ list_sdevices(Widget* pw)
             if (e < 0) {
                 pw->appendMessage(QString("error: cannot get expander[%1] wwid!").arg(name));
             } else {
-                for (; prev < k; ++prev) {
-                    gDevices.setSlot(buff, namelist[prev]->d_name, namelist[k]->d_name, e);
+                if (false == hba9500) {
+                    for (; prev < k; ++prev) {
+                        gDevices.setSlot(buff, namelist[prev]->d_name, namelist[k]->d_name, e);
+                    }
+                    prev = k + 1;
                 }
                 gControllers.setController(buff, namelist[k]->d_name, e);
-                prev = k + 1;
             }
+        } else if (true == hba9500) {
+            gDevices.setSlot(buff, name, enclosure_device.name);
         }
     }
 

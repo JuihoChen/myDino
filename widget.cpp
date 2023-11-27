@@ -59,6 +59,27 @@ void DeviceFunc::setSlot(QString path, QString device, QString expander, int iex
     myCount++;
 }
 
+void DeviceFunc::setSlot(QString path, QString device, QString enclosure_device_name)
+{
+    int sl = enclosure_device_name.right(2).toShort(0,16) - 1;
+
+    pSlotInfo[sl].d_name = device;
+
+    // Get wwid of this device
+    QString wd = path.append("/%1").arg(device);
+    if (false == get_myValue(wd, "wwid", pSlotInfo[sl].wwid)) {
+        pSlotInfo[sl].wwid.clear();
+    }
+
+    // Get block name of this device
+    wd += "/block";
+    pSlotInfo[sl].block = get_blockname(wd);
+
+    pSlotInfo[sl].cb_slot->setEnabled(true);
+    setSlotLabel(sl);
+    myCount++;
+}
+
 void DeviceFunc::setSlotLabel(int sl)
 {
     if (gCb && !pSlotInfo[sl].d_name.isEmpty())

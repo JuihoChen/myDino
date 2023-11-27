@@ -32,6 +32,7 @@ public:
 
     void clear();
     void setSlot(QString path, QString device, QString expander, int iexp);
+    void setSlot(QString path, QString device, QString enclosure_device_name);
     void setSlotLabel(int sl);
     int count() { return myCount; }
 
