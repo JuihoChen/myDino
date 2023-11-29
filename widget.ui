@@ -205,32 +205,6 @@
      <string>5000c500e6132d8c</string>
     </property>
    </widget>
-   <widget class="QCheckBox" name="checkBox_12">
-    <property name="geometry">
-     <rect>
-      <x>650</x>
-      <y>55</y>
-      <width>161</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>5000c500e6132d8c</string>
-    </property>
-   </widget>
-   <widget class="QCheckBox" name="checkBox_14">
-    <property name="geometry">
-     <rect>
-      <x>970</x>
-      <y>55</y>
-      <width>161</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>5000c500e6132d8c</string>
-    </property>
-   </widget>
    <widget class="QCheckBox" name="checkBox_8">
     <property name="geometry">
      <rect>
@@ -257,10 +231,36 @@
      <string>5000c500e6132d8c</string>
     </property>
    </widget>
+   <widget class="QCheckBox" name="checkBox_10">
+    <property name="geometry">
+     <rect>
+      <x>330</x>
+      <y>55</y>
+      <width>161</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>5000c500e6132d8c</string>
+    </property>
+   </widget>
    <widget class="QCheckBox" name="checkBox_11">
     <property name="geometry">
      <rect>
       <x>490</x>
+      <y>55</y>
+      <width>161</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>5000c500e6132d8c</string>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="checkBox_12">
+    <property name="geometry">
+     <rect>
+      <x>650</x>
       <y>55</y>
       <width>161</width>
       <height>21</height>
@@ -283,10 +283,10 @@
      <string>5000c500e6132d8c</string>
     </property>
    </widget>
-   <widget class="QCheckBox" name="checkBox_10">
+   <widget class="QCheckBox" name="checkBox_14">
     <property name="geometry">
      <rect>
-      <x>330</x>
+      <x>970</x>
       <y>55</y>
       <width>161</width>
       <height>21</height>
@@ -296,62 +296,10 @@
      <string>5000c500e6132d8c</string>
     </property>
    </widget>
-   <widget class="QCheckBox" name="checkBox_22">
+   <widget class="QCheckBox" name="checkBox_15">
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>105</y>
-      <width>161</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>5000c500e6132d8c</string>
-    </property>
-   </widget>
-   <widget class="QCheckBox" name="checkBox_28">
-    <property name="geometry">
-     <rect>
-      <x>970</x>
-      <y>105</y>
-      <width>161</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>5000c500e6132d8c</string>
-    </property>
-   </widget>
-   <widget class="QCheckBox" name="checkBox_27">
-    <property name="geometry">
-     <rect>
-      <x>810</x>
-      <y>105</y>
-      <width>161</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>5000c500e6132d8c</string>
-    </property>
-   </widget>
-   <widget class="QCheckBox" name="checkBox_19">
-    <property name="geometry">
-     <rect>
-      <x>650</x>
-      <y>80</y>
-      <width>161</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>5000c500e6132d8c</string>
-    </property>
-   </widget>
-   <widget class="QCheckBox" name="checkBox_21">
-    <property name="geometry">
-     <rect>
-      <x>970</x>
       <y>80</y>
       <width>161</width>
       <height>21</height>
@@ -374,24 +322,11 @@
      <string>5000c500e6132d8c</string>
     </property>
    </widget>
-   <widget class="QCheckBox" name="checkBox_15">
+   <widget class="QCheckBox" name="checkBox_17">
     <property name="geometry">
      <rect>
-      <x>10</x>
+      <x>330</x>
       <y>80</y>
-      <width>161</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>5000c500e6132d8c</string>
-    </property>
-   </widget>
-   <widget class="QCheckBox" name="checkBox_26">
-    <property name="geometry">
-     <rect>
-      <x>650</x>
-      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -413,11 +348,11 @@
      <string>5000c500e6132d8c</string>
     </property>
    </widget>
-   <widget class="QCheckBox" name="checkBox_24">
+   <widget class="QCheckBox" name="checkBox_19">
     <property name="geometry">
      <rect>
-      <x>330</x>
-      <y>105</y>
+      <x>650</x>
+      <y>80</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -439,10 +374,49 @@
      <string>5000c500e6132d8c</string>
     </property>
    </widget>
+   <widget class="QCheckBox" name="checkBox_21">
+    <property name="geometry">
+     <rect>
+      <x>970</x>
+      <y>80</y>
+      <width>161</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>5000c500e6132d8c</string>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="checkBox_22">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>105</y>
+      <width>161</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>5000c500e6132d8c</string>
+    </property>
+   </widget>
    <widget class="QCheckBox" name="checkBox_23">
     <property name="geometry">
      <rect>
       <x>170</x>
+      <y>105</y>
+      <width>161</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>5000c500e6132d8c</string>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="checkBox_24">
+    <property name="geometry">
+     <rect>
+      <x>330</x>
       <y>105</y>
       <width>161</width>
       <height>21</height>
@@ -465,11 +439,37 @@
      <string>5000c500e6132d8c</string>
     </property>
    </widget>
-   <widget class="QCheckBox" name="checkBox_17">
+   <widget class="QCheckBox" name="checkBox_26">
     <property name="geometry">
      <rect>
-      <x>330</x>
-      <y>80</y>
+      <x>650</x>
+      <y>105</y>
+      <width>161</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>5000c500e6132d8c</string>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="checkBox_27">
+    <property name="geometry">
+     <rect>
+      <x>810</x>
+      <y>105</y>
+      <width>161</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>5000c500e6132d8c</string>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="checkBox_28">
+    <property name="geometry">
+     <rect>
+      <x>970</x>
+      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -620,32 +620,6 @@ li.checked::marker { content: &quot;\2612&quot;; }
      <string>5000c500e6132d8c</string>
     </property>
    </widget>
-   <widget class="QCheckBox" name="checkBox_40">
-    <property name="geometry">
-     <rect>
-      <x>650</x>
-      <y>55</y>
-      <width>161</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>5000c500e6132d8c</string>
-    </property>
-   </widget>
-   <widget class="QCheckBox" name="checkBox_42">
-    <property name="geometry">
-     <rect>
-      <x>970</x>
-      <y>55</y>
-      <width>161</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>5000c500e6132d8c</string>
-    </property>
-   </widget>
    <widget class="QCheckBox" name="checkBox_36">
     <property name="geometry">
      <rect>
@@ -672,10 +646,36 @@ li.checked::marker { content: &quot;\2612&quot;; }
      <string>5000c500e6132d8c</string>
     </property>
    </widget>
+   <widget class="QCheckBox" name="checkBox_38">
+    <property name="geometry">
+     <rect>
+      <x>330</x>
+      <y>55</y>
+      <width>161</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>5000c500e6132d8c</string>
+    </property>
+   </widget>
    <widget class="QCheckBox" name="checkBox_39">
     <property name="geometry">
      <rect>
       <x>490</x>
+      <y>55</y>
+      <width>161</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>5000c500e6132d8c</string>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="checkBox_40">
+    <property name="geometry">
+     <rect>
+      <x>650</x>
       <y>55</y>
       <width>161</width>
       <height>21</height>
@@ -698,10 +698,10 @@ li.checked::marker { content: &quot;\2612&quot;; }
      <string>5000c500e6132d8c</string>
     </property>
    </widget>
-   <widget class="QCheckBox" name="checkBox_38">
+   <widget class="QCheckBox" name="checkBox_42">
     <property name="geometry">
      <rect>
-      <x>330</x>
+      <x>970</x>
       <y>55</y>
       <width>161</width>
       <height>21</height>
@@ -711,62 +711,10 @@ li.checked::marker { content: &quot;\2612&quot;; }
      <string>5000c500e6132d8c</string>
     </property>
    </widget>
-   <widget class="QCheckBox" name="checkBox_50">
+   <widget class="QCheckBox" name="checkBox_43">
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>105</y>
-      <width>161</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>5000c500e6132d8c</string>
-    </property>
-   </widget>
-   <widget class="QCheckBox" name="checkBox_56">
-    <property name="geometry">
-     <rect>
-      <x>970</x>
-      <y>105</y>
-      <width>161</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>5000c500e6132d8c</string>
-    </property>
-   </widget>
-   <widget class="QCheckBox" name="checkBox_55">
-    <property name="geometry">
-     <rect>
-      <x>810</x>
-      <y>105</y>
-      <width>161</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>5000c500e6132d8c</string>
-    </property>
-   </widget>
-   <widget class="QCheckBox" name="checkBox_47">
-    <property name="geometry">
-     <rect>
-      <x>650</x>
-      <y>80</y>
-      <width>161</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>5000c500e6132d8c</string>
-    </property>
-   </widget>
-   <widget class="QCheckBox" name="checkBox_49">
-    <property name="geometry">
-     <rect>
-      <x>970</x>
       <y>80</y>
       <width>161</width>
       <height>21</height>
@@ -789,24 +737,11 @@ li.checked::marker { content: &quot;\2612&quot;; }
      <string>5000c500e6132d8c</string>
     </property>
    </widget>
-   <widget class="QCheckBox" name="checkBox_43">
+   <widget class="QCheckBox" name="checkBox_45">
     <property name="geometry">
      <rect>
-      <x>10</x>
+      <x>330</x>
       <y>80</y>
-      <width>161</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>5000c500e6132d8c</string>
-    </property>
-   </widget>
-   <widget class="QCheckBox" name="checkBox_54">
-    <property name="geometry">
-     <rect>
-      <x>650</x>
-      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -828,11 +763,11 @@ li.checked::marker { content: &quot;\2612&quot;; }
      <string>5000c500e6132d8c</string>
     </property>
    </widget>
-   <widget class="QCheckBox" name="checkBox_52">
+   <widget class="QCheckBox" name="checkBox_47">
     <property name="geometry">
      <rect>
-      <x>330</x>
-      <y>105</y>
+      <x>650</x>
+      <y>80</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -854,10 +789,49 @@ li.checked::marker { content: &quot;\2612&quot;; }
      <string>5000c500e6132d8c</string>
     </property>
    </widget>
+   <widget class="QCheckBox" name="checkBox_49">
+    <property name="geometry">
+     <rect>
+      <x>970</x>
+      <y>80</y>
+      <width>161</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>5000c500e6132d8c</string>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="checkBox_50">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>105</y>
+      <width>161</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>5000c500e6132d8c</string>
+    </property>
+   </widget>
    <widget class="QCheckBox" name="checkBox_51">
     <property name="geometry">
      <rect>
       <x>170</x>
+      <y>105</y>
+      <width>161</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>5000c500e6132d8c</string>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="checkBox_52">
+    <property name="geometry">
+     <rect>
+      <x>330</x>
       <y>105</y>
       <width>161</width>
       <height>21</height>
@@ -880,11 +854,37 @@ li.checked::marker { content: &quot;\2612&quot;; }
      <string>5000c500e6132d8c</string>
     </property>
    </widget>
-   <widget class="QCheckBox" name="checkBox_45">
+   <widget class="QCheckBox" name="checkBox_54">
     <property name="geometry">
      <rect>
-      <x>330</x>
-      <y>80</y>
+      <x>650</x>
+      <y>105</y>
+      <width>161</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>5000c500e6132d8c</string>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="checkBox_55">
+    <property name="geometry">
+     <rect>
+      <x>810</x>
+      <y>105</y>
+      <width>161</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>5000c500e6132d8c</string>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="checkBox_56">
+    <property name="geometry">
+     <rect>
+      <x>970</x>
+      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1003,32 +1003,6 @@ li.checked::marker { content: &quot;\2612&quot;; }
      <string>5000c500e6132d8c</string>
     </property>
    </widget>
-   <widget class="QCheckBox" name="checkBox_68">
-    <property name="geometry">
-     <rect>
-      <x>650</x>
-      <y>55</y>
-      <width>161</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>5000c500e6132d8c</string>
-    </property>
-   </widget>
-   <widget class="QCheckBox" name="checkBox_70">
-    <property name="geometry">
-     <rect>
-      <x>970</x>
-      <y>55</y>
-      <width>161</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>5000c500e6132d8c</string>
-    </property>
-   </widget>
    <widget class="QCheckBox" name="checkBox_64">
     <property name="geometry">
      <rect>
@@ -1055,10 +1029,36 @@ li.checked::marker { content: &quot;\2612&quot;; }
      <string>5000c500e6132d8c</string>
     </property>
    </widget>
+   <widget class="QCheckBox" name="checkBox_66">
+    <property name="geometry">
+     <rect>
+      <x>330</x>
+      <y>55</y>
+      <width>161</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>5000c500e6132d8c</string>
+    </property>
+   </widget>
    <widget class="QCheckBox" name="checkBox_67">
     <property name="geometry">
      <rect>
       <x>490</x>
+      <y>55</y>
+      <width>161</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>5000c500e6132d8c</string>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="checkBox_68">
+    <property name="geometry">
+     <rect>
+      <x>650</x>
       <y>55</y>
       <width>161</width>
       <height>21</height>
@@ -1081,10 +1081,10 @@ li.checked::marker { content: &quot;\2612&quot;; }
      <string>5000c500e6132d8c</string>
     </property>
    </widget>
-   <widget class="QCheckBox" name="checkBox_66">
+   <widget class="QCheckBox" name="checkBox_70">
     <property name="geometry">
      <rect>
-      <x>330</x>
+      <x>970</x>
       <y>55</y>
       <width>161</width>
       <height>21</height>
@@ -1094,62 +1094,10 @@ li.checked::marker { content: &quot;\2612&quot;; }
      <string>5000c500e6132d8c</string>
     </property>
    </widget>
-   <widget class="QCheckBox" name="checkBox_78">
+   <widget class="QCheckBox" name="checkBox_71">
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>105</y>
-      <width>161</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>5000c500e6132d8c</string>
-    </property>
-   </widget>
-   <widget class="QCheckBox" name="checkBox_84">
-    <property name="geometry">
-     <rect>
-      <x>970</x>
-      <y>105</y>
-      <width>161</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>5000c500e6132d8c</string>
-    </property>
-   </widget>
-   <widget class="QCheckBox" name="checkBox_83">
-    <property name="geometry">
-     <rect>
-      <x>810</x>
-      <y>105</y>
-      <width>161</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>5000c500e6132d8c</string>
-    </property>
-   </widget>
-   <widget class="QCheckBox" name="checkBox_75">
-    <property name="geometry">
-     <rect>
-      <x>650</x>
-      <y>80</y>
-      <width>161</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>5000c500e6132d8c</string>
-    </property>
-   </widget>
-   <widget class="QCheckBox" name="checkBox_77">
-    <property name="geometry">
-     <rect>
-      <x>970</x>
       <y>80</y>
       <width>161</width>
       <height>21</height>
@@ -1172,24 +1120,11 @@ li.checked::marker { content: &quot;\2612&quot;; }
      <string>5000c500e6132d8c</string>
     </property>
    </widget>
-   <widget class="QCheckBox" name="checkBox_71">
+   <widget class="QCheckBox" name="checkBox_73">
     <property name="geometry">
      <rect>
-      <x>10</x>
+      <x>330</x>
       <y>80</y>
-      <width>161</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>5000c500e6132d8c</string>
-    </property>
-   </widget>
-   <widget class="QCheckBox" name="checkBox_82">
-    <property name="geometry">
-     <rect>
-      <x>650</x>
-      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1211,11 +1146,11 @@ li.checked::marker { content: &quot;\2612&quot;; }
      <string>5000c500e6132d8c</string>
     </property>
    </widget>
-   <widget class="QCheckBox" name="checkBox_80">
+   <widget class="QCheckBox" name="checkBox_75">
     <property name="geometry">
      <rect>
-      <x>330</x>
-      <y>105</y>
+      <x>650</x>
+      <y>80</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1237,10 +1172,49 @@ li.checked::marker { content: &quot;\2612&quot;; }
      <string>5000c500e6132d8c</string>
     </property>
    </widget>
+   <widget class="QCheckBox" name="checkBox_77">
+    <property name="geometry">
+     <rect>
+      <x>970</x>
+      <y>80</y>
+      <width>161</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>5000c500e6132d8c</string>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="checkBox_78">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>105</y>
+      <width>161</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>5000c500e6132d8c</string>
+    </property>
+   </widget>
    <widget class="QCheckBox" name="checkBox_79">
     <property name="geometry">
      <rect>
       <x>170</x>
+      <y>105</y>
+      <width>161</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>5000c500e6132d8c</string>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="checkBox_80">
+    <property name="geometry">
+     <rect>
+      <x>330</x>
       <y>105</y>
       <width>161</width>
       <height>21</height>
@@ -1263,11 +1237,37 @@ li.checked::marker { content: &quot;\2612&quot;; }
      <string>5000c500e6132d8c</string>
     </property>
    </widget>
-   <widget class="QCheckBox" name="checkBox_73">
+   <widget class="QCheckBox" name="checkBox_82">
     <property name="geometry">
      <rect>
-      <x>330</x>
-      <y>80</y>
+      <x>650</x>
+      <y>105</y>
+      <width>161</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>5000c500e6132d8c</string>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="checkBox_83">
+    <property name="geometry">
+     <rect>
+      <x>810</x>
+      <y>105</y>
+      <width>161</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>5000c500e6132d8c</string>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="checkBox_84">
+    <property name="geometry">
+     <rect>
+      <x>970</x>
+      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1386,32 +1386,6 @@ li.checked::marker { content: &quot;\2612&quot;; }
      <string>5000c500e6132d8c</string>
     </property>
    </widget>
-   <widget class="QCheckBox" name="checkBox_96">
-    <property name="geometry">
-     <rect>
-      <x>650</x>
-      <y>55</y>
-      <width>161</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>5000c500e6132d8c</string>
-    </property>
-   </widget>
-   <widget class="QCheckBox" name="checkBox_98">
-    <property name="geometry">
-     <rect>
-      <x>970</x>
-      <y>55</y>
-      <width>161</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>5000c500e6132d8c</string>
-    </property>
-   </widget>
    <widget class="QCheckBox" name="checkBox_92">
     <property name="geometry">
      <rect>
@@ -1438,10 +1412,36 @@ li.checked::marker { content: &quot;\2612&quot;; }
      <string>5000c500e6132d8c</string>
     </property>
    </widget>
+   <widget class="QCheckBox" name="checkBox_94">
+    <property name="geometry">
+     <rect>
+      <x>330</x>
+      <y>55</y>
+      <width>161</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>5000c500e6132d8c</string>
+    </property>
+   </widget>
    <widget class="QCheckBox" name="checkBox_95">
     <property name="geometry">
      <rect>
       <x>490</x>
+      <y>55</y>
+      <width>161</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>5000c500e6132d8c</string>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="checkBox_96">
+    <property name="geometry">
+     <rect>
+      <x>650</x>
       <y>55</y>
       <width>161</width>
       <height>21</height>
@@ -1464,10 +1464,10 @@ li.checked::marker { content: &quot;\2612&quot;; }
      <string>5000c500e6132d8c</string>
     </property>
    </widget>
-   <widget class="QCheckBox" name="checkBox_94">
+   <widget class="QCheckBox" name="checkBox_98">
     <property name="geometry">
      <rect>
-      <x>330</x>
+      <x>970</x>
       <y>55</y>
       <width>161</width>
       <height>21</height>
@@ -1477,62 +1477,10 @@ li.checked::marker { content: &quot;\2612&quot;; }
      <string>5000c500e6132d8c</string>
     </property>
    </widget>
-   <widget class="QCheckBox" name="checkBox_106">
+   <widget class="QCheckBox" name="checkBox_99">
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>105</y>
-      <width>161</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>5000c500e6132d8c</string>
-    </property>
-   </widget>
-   <widget class="QCheckBox" name="checkBox_112">
-    <property name="geometry">
-     <rect>
-      <x>970</x>
-      <y>105</y>
-      <width>161</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>5000c500e6132d8c</string>
-    </property>
-   </widget>
-   <widget class="QCheckBox" name="checkBox_111">
-    <property name="geometry">
-     <rect>
-      <x>810</x>
-      <y>105</y>
-      <width>161</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>5000c500e6132d8c</string>
-    </property>
-   </widget>
-   <widget class="QCheckBox" name="checkBox_103">
-    <property name="geometry">
-     <rect>
-      <x>650</x>
-      <y>80</y>
-      <width>161</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>5000c500e6132d8c</string>
-    </property>
-   </widget>
-   <widget class="QCheckBox" name="checkBox_105">
-    <property name="geometry">
-     <rect>
-      <x>970</x>
       <y>80</y>
       <width>161</width>
       <height>21</height>
@@ -1555,24 +1503,11 @@ li.checked::marker { content: &quot;\2612&quot;; }
      <string>5000c500e6132d8c</string>
     </property>
    </widget>
-   <widget class="QCheckBox" name="checkBox_99">
+   <widget class="QCheckBox" name="checkBox_101">
     <property name="geometry">
      <rect>
-      <x>10</x>
+      <x>330</x>
       <y>80</y>
-      <width>161</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>5000c500e6132d8c</string>
-    </property>
-   </widget>
-   <widget class="QCheckBox" name="checkBox_110">
-    <property name="geometry">
-     <rect>
-      <x>650</x>
-      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1594,11 +1529,11 @@ li.checked::marker { content: &quot;\2612&quot;; }
      <string>5000c500e6132d8c</string>
     </property>
    </widget>
-   <widget class="QCheckBox" name="checkBox_108">
+   <widget class="QCheckBox" name="checkBox_103">
     <property name="geometry">
      <rect>
-      <x>330</x>
-      <y>105</y>
+      <x>650</x>
+      <y>80</y>
       <width>161</width>
       <height>21</height>
      </rect>
@@ -1620,10 +1555,49 @@ li.checked::marker { content: &quot;\2612&quot;; }
      <string>5000c500e6132d8c</string>
     </property>
    </widget>
+   <widget class="QCheckBox" name="checkBox_105">
+    <property name="geometry">
+     <rect>
+      <x>970</x>
+      <y>80</y>
+      <width>161</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>5000c500e6132d8c</string>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="checkBox_106">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>105</y>
+      <width>161</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>5000c500e6132d8c</string>
+    </property>
+   </widget>
    <widget class="QCheckBox" name="checkBox_107">
     <property name="geometry">
      <rect>
       <x>170</x>
+      <y>105</y>
+      <width>161</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>5000c500e6132d8c</string>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="checkBox_108">
+    <property name="geometry">
+     <rect>
+      <x>330</x>
       <y>105</y>
       <width>161</width>
       <height>21</height>
@@ -1646,11 +1620,37 @@ li.checked::marker { content: &quot;\2612&quot;; }
      <string>5000c500e6132d8c</string>
     </property>
    </widget>
-   <widget class="QCheckBox" name="checkBox_101">
+   <widget class="QCheckBox" name="checkBox_110">
     <property name="geometry">
      <rect>
-      <x>330</x>
-      <y>80</y>
+      <x>650</x>
+      <y>105</y>
+      <width>161</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>5000c500e6132d8c</string>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="checkBox_111">
+    <property name="geometry">
+     <rect>
+      <x>810</x>
+      <y>105</y>
+      <width>161</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>5000c500e6132d8c</string>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="checkBox_112">
+    <property name="geometry">
+     <rect>
+      <x>970</x>
+      <y>105</y>
       <width>161</width>
       <height>21</height>
      </rect>
