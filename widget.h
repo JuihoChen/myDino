@@ -37,6 +37,8 @@ public:
     int count() { return myCount; }
 
 private:
+    void setSlot(QString path, QString device, int sl);
+
     _ST_SLOTINFO *pSlotInfo;
     int myCount;
 };

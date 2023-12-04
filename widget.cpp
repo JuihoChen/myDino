@@ -23,11 +23,32 @@ void DeviceFunc::clear()
         pSlotInfo[i].cb_slot->setStyleSheet("QCheckBox:enabled{color: black;} QCheckBox:disabled{color: grey;}");
         pSlotInfo[i].cb_slot->setDisabled(true);
         pSlotInfo[i].cb_slot->setCheckState(Qt::CheckState::Unchecked);
-        pSlotInfo[i].block.clear();
         pSlotInfo[i].d_name.clear();
         pSlotInfo[i].wwid.clear();
+        pSlotInfo[i].block.clear();
     }
     myCount = 0;
+}
+
+void DeviceFunc::setSlot(QString path, QString device, int sl)
+{
+    if ((unsigned)sl < NSLOT) {
+        pSlotInfo[sl].d_name = device;
+
+        // Get wwid of this device
+        QString wd = path.append("/%1").arg(device);
+        if (false == get_myValue(wd, "wwid", pSlotInfo[sl].wwid)) {
+            pSlotInfo[sl].wwid.clear();
+        }
+
+        // Get block name of this device
+        wd += "/block";
+        pSlotInfo[sl].block = get_blockname(wd);
+
+        pSlotInfo[sl].cb_slot->setEnabled(true);
+        setSlotLabel(sl);
+        myCount++;
+    }
 }
 
 void DeviceFunc::setSlot(QString path, QString device, QString expander, int iexp)
@@ -42,42 +63,12 @@ void DeviceFunc::setSlot(QString path, QString device, QString expander, int iex
 
     sl = (iexp + 1) * 28 - sl;
 
-    pSlotInfo[sl].d_name = device;
-
-    // Get wwid of this device
-    QString wd = path.append("/%1").arg(device);
-    if (false == get_myValue(wd, "wwid", pSlotInfo[sl].wwid)) {
-        pSlotInfo[sl].wwid.clear();
-    }
-
-    // Get block name of this device
-    wd += "/block";
-    pSlotInfo[sl].block = get_blockname(wd);
-
-    pSlotInfo[sl].cb_slot->setEnabled(true);
-    setSlotLabel(sl);
-    myCount++;
+    setSlot(path, device, sl);
 }
 
 void DeviceFunc::setSlot(QString path, QString device, QString enclosure_device_name)
 {
-    int sl = enclosure_device_name.right(2).toShort(0,16) - 1;
-
-    pSlotInfo[sl].d_name = device;
-
-    // Get wwid of this device
-    QString wd = path.append("/%1").arg(device);
-    if (false == get_myValue(wd, "wwid", pSlotInfo[sl].wwid)) {
-        pSlotInfo[sl].wwid.clear();
-    }
-
-    // Get block name of this device
-    wd += "/block";
-    pSlotInfo[sl].block = get_blockname(wd);
-
-    pSlotInfo[sl].cb_slot->setEnabled(true);
-    setSlotLabel(sl);
-    myCount++;
+    setSlot(path, device, enclosure_device_name.right(2).toShort(0, 16) - 1);
 }
 
 void DeviceFunc::setSlotLabel(int sl)
