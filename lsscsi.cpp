@@ -12,6 +12,8 @@
 #include "widget.h"
 #include <QString>
 
+#include "./lsscsi.h"
+
 #define FT_OTHER 0
 #define FT_BLOCK 1
 #define FT_CHAR 2

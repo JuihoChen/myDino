@@ -34,6 +34,12 @@
      <height>131</height>
     </size>
    </property>
+   <property name="maximumSize">
+    <size>
+     <width>16777215</width>
+     <height>131</height>
+    </size>
+   </property>
    <property name="currentIndex">
     <number>0</number>
    </property>
@@ -41,17 +47,17 @@
     <attribute name="title">
      <string>SMP</string>
     </attribute>
-    <widget class="QRadioButton" name="radioButton">
+    <widget class="QRadioButton" name="radDiscover">
      <property name="geometry">
       <rect>
-       <x>20</x>
+       <x>120</x>
        <y>10</y>
        <width>112</width>
        <height>23</height>
       </rect>
      </property>
      <property name="text">
-      <string>RadioButton</string>
+      <string>Discover</string>
      </property>
      <property name="checked">
       <bool>true</bool>
@@ -60,7 +66,7 @@
     <widget class="QRadioButton" name="radioButton_2">
      <property name="geometry">
       <rect>
-       <x>20</x>
+       <x>120</x>
        <y>40</y>
        <width>112</width>
        <height>23</height>
@@ -73,7 +79,7 @@
     <widget class="QRadioButton" name="radioButton_3">
      <property name="geometry">
       <rect>
-       <x>20</x>
+       <x>120</x>
        <y>70</y>
        <width>112</width>
        <height>23</height>
@@ -81,6 +87,19 @@
      </property>
      <property name="text">
       <string>RadioButton</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btnSmpDoit">
+     <property name="geometry">
+      <rect>
+       <x>20</x>
+       <y>24</y>
+       <width>81</width>
+       <height>51</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Do it</string>
      </property>
     </widget>
    </widget>
@@ -1700,7 +1719,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
   <widget class="QLabel" name="label">
    <property name="geometry">
     <rect>
-     <x>870</x>
+     <x>880</x>
      <y>62</y>
      <width>120</width>
      <height>20</height>
@@ -1720,7 +1739,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     </rect>
    </property>
    <property name="text">
-    <string>Refresh</string>
+    <string> Refresh</string>
    </property>
    <property name="icon">
     <iconset theme="view-refresh">
@@ -1730,14 +1749,14 @@ li.checked::marker { content: &quot;\2612&quot;; }
   <widget class="QPushButton" name="btnClearTB">
    <property name="geometry">
     <rect>
-     <x>1000</x>
+     <x>990</x>
      <y>740</y>
      <width>121</width>
      <height>25</height>
     </rect>
    </property>
    <property name="text">
-    <string>Clear</string>
+    <string>  Clear</string>
    </property>
    <property name="icon">
     <iconset theme="document-new">

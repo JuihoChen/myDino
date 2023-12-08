@@ -1,6 +1,7 @@
 #include "widget.h"
 #include "./ui_widget.h"
 #include "./lsscsi.h"
+#include "./smp_discover.h"
 
 #include <QVBoxLayout>
 #include <QSystemTrayIcon>
@@ -172,6 +173,7 @@ Widget::Widget(QWidget *parent)
 
     connect(ui->cbxSlot, &QComboBox::currentIndexChanged, this, &Widget::cbxSlotIndexChanged);
     connect(ui->btnRefresh, &QPushButton::clicked, this, &Widget::btnRefreshClicked);
+    connect(ui->btnSmpDoit, &QPushButton::clicked, this, &Widget::btnSmpDoitClicked);
     connect(ui->btnClearTB, &QPushButton::clicked, this, &Widget::btnClearTBClicked);
 
     // Configure for systray icon
@@ -204,11 +206,6 @@ void Widget::btnRefreshClicked()
     refreshSlots();
 }
 
-void Widget::btnClearTBClicked()
-{
-    ui->textBrowser->clear();  // Clear the default ui text
-}
-
 void Widget::cbxSlotIndexChanged(int index)
 {
     for (int i=0; i<NSLOT; i++) {
@@ -223,4 +220,15 @@ void Widget::refreshSlots()
     gControllers.clear();
     list_sdevices(this);
     appendMessage(QString::asprintf("Found %d expanders and %d devices", gControllers.count(), gDevices.count()));
+}
+
+void Widget::btnSmpDoitClicked()
+{
+    appendMessage("Discover expanders...");
+    doDiscover();
+}
+
+void Widget::btnClearTBClicked()
+{
+    ui->textBrowser->clear();  // Clear the default ui text
 }

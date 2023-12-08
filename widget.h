@@ -78,8 +78,9 @@ public:
 
 private slots:
     void btnRefreshClicked();
-    void btnClearTBClicked();
     void cbxSlotIndexChanged(int index);
+    void btnSmpDoitClicked();
+    void btnClearTBClicked();
 
 private:
     void refreshSlots();
