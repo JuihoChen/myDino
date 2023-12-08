@@ -363,38 +363,38 @@ if_directory_chdir(const char * dir_name, const char * base_name)
  * and returns true . Else returns false.
  */
 static bool
-get_value(const char * dir_name, const char * base_name, char * value,
-          int max_value_len)
+get_value(QString dir_name, QString base_name, char * value, int max_value_len)
 {
     int len;
     FILE * f;
-    char b[LMAX_PATH];
+    QString b = dir_name + "/" + base_name;
 
-    snprintf(b, sizeof(b), "%s/%s", dir_name, base_name);
-    if (NULL == (f = fopen(b, "r"))) {
+    if (NULL == (f = fopen(b.toStdString().c_str(), "r"))) {
         return false;
     }
+
     if (NULL == fgets(value, max_value_len, f)) {
         /* assume empty */
         value[0] = '\0';
         fclose(f);
         return true;
     }
+
     len = strlen(value);
-    if ((len > 0) && (value[len - 1] == '\n'))
+    if ((len > 0) && (value[len - 1] == '\n')) {
         value[len - 1] = '\0';
+    }
+
     fclose(f);
     return true;
 }
 
 static int
-index_expander(const char * dir_name, const char * devname)
+index_expander(QString dir_name, QString devname)
 {
     int vlen;
-    char wd[LMAX_PATH];
     char value[LMAX_NAME];
-
-    snprintf(wd, sizeof(wd), "%s/%s/enclosure/%s", dir_name, devname, devname);
+    QString wd = QString("%1/%2/enclosure/%2").arg(dir_name, devname);
 
     vlen = sizeof(value);
     if (get_value(wd, "id", value, vlen)) {
@@ -413,7 +413,7 @@ get_myValue(QString dir_name, QString name, QString& myvalue)
     char value[LMAX_NAME];
 
     vlen = sizeof(value);
-    if (get_value(dir_name.toStdString().c_str(), name.toStdString().c_str(), value, vlen)) {
+    if (get_value(dir_name, name, value, vlen)) {
         myvalue = value;
         return true;
     }
@@ -456,15 +456,13 @@ list_sdevices(Widget* pw)
 {
     int num, k, prev;
     struct dirent ** namelist;
-    char buff[LMAX_DEVPATH];
-    char name[LMAX_NAME];
-    QString path;
+    QString buff, name, path;
 
     printf("listing...\n");
 
-    snprintf(buff, sizeof(buff), "%s%s", sysfsroot, bus_scsi_devs);
+    buff = QString(sysfsroot) + bus_scsi_devs;
 
-    num = scandir(buff, &namelist, sdev_dir_scan_select, sdev_scandir_sort);
+    num = scandir(buff.toStdString().c_str(), &namelist, sdev_dir_scan_select, sdev_scandir_sort);
     if (num < 0) {  /* scsi mid level may not be loaded */
         path = QString("%1: scandir: %2").arg(__func__, buff);
         perror(path.toStdString().c_str());
@@ -472,7 +470,7 @@ list_sdevices(Widget* pw)
     }
 
     for (prev = k = 0; k < num; ++k) {
-        my_strcopy(name, namelist[k]->d_name, sizeof(name));
+        name = namelist[k]->d_name;
         path = QString("%1/%2").arg(buff, name);
         if (enclosure_scan(path.toStdString().c_str())) {
             int e = index_expander(buff, name);
