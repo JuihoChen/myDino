@@ -31,6 +31,8 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         lsscsi.h
         smp_discover.cpp
         smp_discover.h
+        refresh.png
+        linkrate.png
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET myDino APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR

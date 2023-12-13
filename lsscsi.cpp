@@ -468,7 +468,7 @@ list_sdevices(Widget* pw)
     if (num < 0) {  /* scsi mid level may not be loaded */
         path = QString("%1: scandir: %2").arg(__func__, buff);
         perror(path.toStdString().c_str());
-        printf("SCSI mid level module may not be loaded\n");
+        pw->appendMessage("SCSI mid level module may not be loaded.");
     }
 
     for (prev = k = 0; k < num; ++k) {

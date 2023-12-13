@@ -1,6 +1,8 @@
 #ifndef SMP_DISCOVER_H
 #define SMP_DISCOVER_H
 
-void doDiscover();
+#include "widget.h"
+
+void doDiscover(Widget*);
 
 #endif // SMP_DISCOVER_H

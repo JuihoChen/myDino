@@ -99,7 +99,17 @@
       </rect>
      </property>
      <property name="text">
-      <string>Do it</string>
+      <string> Go</string>
+     </property>
+     <property name="icon">
+      <iconset theme="applications-multimedia">
+       <normaloff>.</normaloff>.</iconset>
+     </property>
+     <property name="iconSize">
+      <size>
+       <width>24</width>
+       <height>24</height>
+      </size>
      </property>
     </widget>
    </widget>
@@ -1711,8 +1721,8 @@ li.checked::marker { content: &quot;\2612&quot;; }
      <string>NLR</string>
     </property>
     <property name="icon">
-     <iconset theme="network-transmit-receive">
-      <normaloff>.</normaloff>.</iconset>
+     <iconset resource="systray.qrc">
+      <normaloff>:/linkrate.png</normaloff>:/linkrate.png</iconset>
     </property>
    </item>
   </widget>
@@ -1742,8 +1752,8 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <string> Refresh</string>
    </property>
    <property name="icon">
-    <iconset theme="view-refresh">
-     <normaloff>.</normaloff>.</iconset>
+    <iconset resource="systray.qrc">
+     <normaloff>:/refresh.png</normaloff>:/refresh.png</iconset>
    </property>
   </widget>
   <widget class="QPushButton" name="btnClearTB">
@@ -1764,6 +1774,8 @@ li.checked::marker { content: &quot;\2612&quot;; }
    </property>
   </widget>
  </widget>
- <resources/>
+ <resources>
+  <include location="systray.qrc"/>
+ </resources>
  <connections/>
 </ui>

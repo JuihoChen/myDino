@@ -224,8 +224,10 @@ void Widget::refreshSlots()
 
 void Widget::btnSmpDoitClicked()
 {
-    appendMessage("Discover expanders...");
-    doDiscover();
+    if (ui->radDiscover->isChecked()) {
+        appendMessage("Discover expanders...");
+        doDiscover(this);
+    }
 }
 
 void Widget::btnClearTBClicked()
