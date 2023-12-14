@@ -469,6 +469,7 @@ list_sdevices(Widget* pw)
         path = QString("%1: scandir: %2").arg(__func__, buff);
         perror(path.toStdString().c_str());
         pw->appendMessage("SCSI mid level module may not be loaded.");
+        return;
     }
 
     for (prev = k = 0; k < num; ++k) {

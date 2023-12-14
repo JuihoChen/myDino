@@ -28,6 +28,11 @@ void doDiscover(Widget* pw)
     printf("discovering...\n");
 
     num = scandir(dev_bsg, &namelist, bsgdev_scan_select, NULL);
+    if (num < 0) {  /* HBA mid level may not be loaded */
+        perror("scandir");
+        pw->appendMessage("HBA mid level module may not be loaded.");
+        return;
+    }
 
     for (k = 0; k < num; ++k) {
         free(namelist[k]);
