@@ -226,7 +226,7 @@ void Widget::btnSmpDoitClicked()
 {
     if (ui->radDiscover->isChecked()) {
         appendMessage("Discover expanders...");
-        doDiscover(this);
+        smpDiscover(this);
     }
 }
 

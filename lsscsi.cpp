@@ -57,7 +57,7 @@ struct addr_hctl {
 };
 
 struct item_t {
-    char name[LMAX_NAME];
+    QString name;
     int ft;
     int d_type;
 };
@@ -152,24 +152,6 @@ dir_or_link(const struct dirent * s, const char * starting_with)
     }
 }
 
-/* Copies (dest_maxlen - 1) or less chars from src to dest. Less chars are
- * copied if '\0' char found in src. As long as dest_maxlen > 0 then dest
- * will be '\0' terminated on exit. If dest_maxlen < 1 then does nothing. */
-static void
-my_strcopy(char *dest, const char *src, int dest_maxlen)
-{
-    const char * lp;
-
-    if (dest_maxlen < 1)
-        return;
-    lp = (const char *)memchr(src, 0, dest_maxlen);
-    if (NULL == lp) {
-        memcpy(dest, src, dest_maxlen - 1);
-        dest[dest_maxlen - 1] = '\0';
-    } else
-        memcpy(dest, src, (lp  - src) + 1);
-}
-
 /* Parse colon_list into host/channel/target/lun ("hctl") array, return true
  * if successful, else false. colon_list should point at first character of
  * hctl (i.e. a digit) and yields a new value in *outp when true returned. */
@@ -232,7 +214,7 @@ first_dir_scan_select(const struct dirent * s)
         return 0;
     if (! dir_or_link(s, NULL))
         return 0;
-    my_strcopy(aa_first.name, s->d_name, LMAX_NAME);
+    aa_first.name = s->d_name;
     aa_first.ft = FT_CHAR;  /* dummy */
     aa_first.d_type = s->d_type;
     return 1;
@@ -311,7 +293,7 @@ enclosure_dir_scan_select(const struct dirent * s)
     if (dir_or_link(s, "enclosure")) {
         if (dir_or_link(s, "enclosure_device")) {
             hba9500 = true;
-            my_strcopy(enclosure_device.name, s->d_name, LMAX_NAME);
+            enclosure_device.name = s->d_name;
             enclosure_device.ft = FT_CHAR;  /* dummy */
             enclosure_device.d_type = s->d_type;
             return 0;
