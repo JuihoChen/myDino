@@ -3,6 +3,6 @@
 
 #include "widget.h"
 
-void smpDiscover(Widget*);
+void smpDiscover(Widget*, int vb);
 
 #endif // SMP_DISCOVER_H

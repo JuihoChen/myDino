@@ -188,7 +188,7 @@ Widget::Widget(QWidget *parent)
     gCb = ui->cbxSlot;
     gDevices.clear();
     gControllers.clear();
-    list_sdevices(this);
+    list_sdevices(this, verbose);
 }
 
 Widget::~Widget()
@@ -218,7 +218,7 @@ void Widget::refreshSlots()
     appendMessage("Refresh slots information...");
     gDevices.clear();
     gControllers.clear();
-    list_sdevices(this);
+    list_sdevices(this, verbose);
     appendMessage(QString::asprintf("Found %d expanders and %d devices", gControllers.count(), gDevices.count()));
 }
 
@@ -226,7 +226,7 @@ void Widget::btnSmpDoitClicked()
 {
     if (ui->radDiscover->isChecked()) {
         appendMessage("Discover expanders...");
-        smpDiscover(this);
+        smpDiscover(this, verbose);
     }
 }
 

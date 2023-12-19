@@ -95,25 +95,6 @@ static const char * scsi_device_types[] =
     "No device",
 };
 
-#ifdef __GNUC__
-static int pr2serr(const char * fmt, ...)
-    __attribute__ ((format (printf, 1, 2)));
-#else
-static int pr2serr(const char * fmt, ...);
-#endif
-
-static int
-pr2serr(const char * fmt, ...)
-{
-    va_list args;
-    int n;
-
-    va_start(args, fmt);
-    n = vfprintf(stderr, fmt, args);
-    va_end(args);
-    return n;
-}
-
 static inline void sg_put_unaligned_be16(uint16_t val, void *p)
 {
     uint16_t u = bswap_16(val);
@@ -275,13 +256,11 @@ sdev_scandir_sort(const struct dirent ** a, const struct dirent ** b)
     struct addr_hctl right_hctl;
 
     if (! parse_colon_list(lnam, &left_hctl)) {
-        pr2serr("%s: left parse failed: %.20s\n", __func__,
-                (lnam ? lnam : "<null>"));
+        qDebug("%s: left parse failed: %.20s", __func__, (lnam ? lnam : "<null>"));
         return -1;
     }
     if (! parse_colon_list(rnam, &right_hctl)) {
-        pr2serr("%s: right parse failed: %.20s\n", __func__,
-                (rnam ? rnam : "<null>"));
+        qDebug("%s: right parse failed: %.20s", __func__, (rnam ? rnam : "<null>"));
         return 1;
     }
     return cmp_hctl(&left_hctl, &right_hctl);
@@ -374,7 +353,7 @@ get_value(QString dir_name, QString base_name, char * value, int max_value_len)
 }
 
 static int
-index_expander(QString dir_name, QString devname)
+index_expander(QString dir_name, QString devname, int vb)
 {
     int vlen;
     char value[LMAX_NAME];
@@ -382,7 +361,9 @@ index_expander(QString dir_name, QString devname)
 
     vlen = sizeof(value);
     if (get_value(wd, "id", value, vlen)) {
-        printf("Found an enclosure wwid: %s\n", value);
+        if (vb) {
+            qDebug("Found an enclosure wwid: %s", value);
+        }
         int len = strlen(value) - 2;
         unsigned i = QString(value + len).toInt(0, 16) >> 6;  // the last byte: 3F, 7F, BF or FF
         return i <= 3 ? i : -1;
@@ -410,7 +391,7 @@ get_blockname(QString dir_name)
     if (1 == scan_for_first(dir_name.toStdString().c_str()))
         return aa_first.name;
     else {
-        printf("unexpected scan_for_first error\n");
+        qDebug("unexpected scan_for_first error");
         return "";
     }
 }
@@ -436,13 +417,14 @@ compute_device_index(const char * device, const char * expander)
 
 /* List SCSI devices (LUs). */
 void
-list_sdevices(Widget* pw)
+list_sdevices(Widget * pw, int vb)
 {
     int num, k, prev;
     struct dirent ** namelist;
     QString buff, name, path;
 
-    printf("listing...\n");
+    if (vb)
+        qDebug("listing...");
 
     buff = QString(sysfsroot) + bus_scsi_devs;
 
@@ -458,7 +440,7 @@ list_sdevices(Widget* pw)
         name = namelist[k]->d_name;
         path = QString("%1/%2").arg(buff, name);
         if (enclosure_scan(path.toStdString().c_str())) {
-            int e = index_expander(buff, name);
+            int e = index_expander(buff, name, vb);
             if (e < 0) {
                 pw->appendMessage(QString("error: cannot get expander[%1] wwid!").arg(name));
             } else {

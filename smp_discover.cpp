@@ -246,7 +246,7 @@ smp_get_page_size(void)
  * no longer needed. If align_to is 0 then aligns to OS's page size. Sets all
  * returned heap to zeros. If num_bytes is 0 then set to page size. */
 static uint8_t *
-smp_memalign(uint32_t num_bytes, uint32_t align_to, uint8_t ** buff_to_free, bool vb)
+smp_memalign(uint32_t num_bytes, uint32_t align_to, uint8_t ** buff_to_free, int vb)
 {
     size_t psz;
     uint8_t * res;
@@ -264,7 +264,7 @@ smp_memalign(uint32_t num_bytes, uint32_t align_to, uint8_t ** buff_to_free, boo
 
         err = posix_memalign(&wp, psz, num_bytes);
         if (err || (NULL == wp)) {
-            printf("%s: posix_memalign: error [%d], out of memory?\n", __func__, err);
+            qDebug("%s: posix_memalign: error [%d], out of memory?", __func__, err);
             return NULL;
         }
         memset(wp, 0, num_bytes);
@@ -272,11 +272,13 @@ smp_memalign(uint32_t num_bytes, uint32_t align_to, uint8_t ** buff_to_free, boo
             *buff_to_free = (uint8_t *)wp;
         res = (uint8_t *)wp;
 
-        if (vb) {
-            printf("%s: posix_ma, len=%d, ", __func__, num_bytes);
-            if (buff_to_free)
-                printf("wrkBuffp=%p, ", (void *)res);
-            printf("psz=%u, rp=%p\n", (unsigned int)psz, (void *)res);
+        if (vb > 2) {
+            QString msg = QString("%1: posix_ma, len=%2, ").arg(__func__).arg(num_bytes);
+            if (buff_to_free) {
+                msg += QString("wrkBuffp=0x%1, ").arg((long)res, 0, 16);
+            }
+            msg += QString("psz=%1, rp=0x%2").arg(psz).arg((long)res, 0, 16);
+            qDebug() << msg;
         }
         return res;
     }
@@ -294,11 +296,13 @@ smp_memalign(uint32_t num_bytes, uint32_t align_to, uint8_t ** buff_to_free, boo
             *buff_to_free = (uint8_t *)wrkBuff;
         res = (uint8_t *)(void *)
             (((uintptr_t)wrkBuff + align_1) & (~align_1));
-        if (vb) {
-            printf("%s: hack, len=%d, ", __func__, num_bytes);
-            if (buff_to_free)
-                printf("buff_to_free=%p, ", wrkBuff);
-            printf("align_1=%lu, rp=%p\n", (unsigned long)align_1, (void *)res);
+        if (vb > 2) {
+            QString msg = QString("%1: hack, len=%2, ").arg(__func__).arg(num_bytes);
+            if (buff_to_free) {
+                msg += QString("buff_to_free=0x%1, ").arg((long)wrkBuff, 0, 16);
+            }
+            msg += QString("align_1=%1, rp=%2").arg((unsigned long)align_1).arg((long)res, 0, 16);
+            qDebug() << msg;
         }
         return res;
     }
@@ -347,14 +351,13 @@ my_isprint(int ch)
     return ((ch >= ' ') && (ch < 0x7f));
 }
 
-/* Note the ASCII-hex output goes to stream identified by 'fp'. This usually
- * be either stdout or stderr.
+/* Note the ASCII-hex output goes to stream stdout.
  * 'no_ascii' allows for 3 output types:
  *     > 0     each line has address then up to 16 ASCII-hex bytes
  *     = 0     in addition, the bytes are listed in ASCII to the right
  *     < 0     only the ASCII-hex bytes are listed (i.e. without address) */
 static void
-dStrHexFp(const char* str, int len, int no_ascii, FILE * fp)
+hex2stdout(const char* str, int len, int no_ascii)
 {
     const char * p = str;
     const char * formatstr;
@@ -371,11 +374,11 @@ dStrHexFp(const char* str, int len, int no_ascii, FILE * fp)
         return;
     blen = (int)sizeof(buff);
     if (0 == no_ascii)  /* address at left and ASCII at right */
-        formatstr = "%.76s\n";
+        formatstr = "%.76s";
     else if (no_ascii > 0)
-        formatstr = "%s\n";     /* was: "%.58s\n" */
+        formatstr = "%s";     /* was: "%.58s\n" */
     else /* negative: no address at left and no ASCII at right */
-        formatstr = "%s\n";     /* was: "%.48s\n"; */
+        formatstr = "%s";     /* was: "%.48s\n"; */
     memset(buff, ' ', 80);
     buff[80] = '\0';
     if (no_ascii < 0) {
@@ -389,7 +392,7 @@ dStrHexFp(const char* str, int len, int no_ascii, FILE * fp)
             buff[bpos + 2] = ' ';
             if ((k > 0) && (0 == ((k + 1) % 16))) {
                 trimTrailingSpaces(buff);
-                fprintf(fp, formatstr, buff);
+                qDebug(formatstr, buff);
                 bpos = bpstart;
                 memset(buff, ' ', 80);
             } else
@@ -398,7 +401,7 @@ dStrHexFp(const char* str, int len, int no_ascii, FILE * fp)
         if (bpos > bpstart) {
             buff[bpos + 2] = '\0';
             trimTrailingSpaces(buff);
-            fprintf(fp, "%s\n", buff);
+            qDebug() << buff;
         }
         return;
     }
@@ -423,7 +426,7 @@ dStrHexFp(const char* str, int len, int no_ascii, FILE * fp)
         if (cpos > (cpstart + 15)) {
             if (no_ascii)
                 trimTrailingSpaces(buff);
-            fprintf(fp, formatstr, buff);
+            qDebug(formatstr, buff);
             bpos = bpstart;
             cpos = cpstart;
             a += 16;
@@ -436,25 +439,13 @@ dStrHexFp(const char* str, int len, int no_ascii, FILE * fp)
         buff[cpos] = '\0';
         if (no_ascii)
             trimTrailingSpaces(buff);
-        fprintf(fp, "%s\n", buff);
+        qDebug() << buff;
     }
-}
-
-static void
-dStrHex(const char* str, int len, int no_ascii)
-{
-    dStrHexFp(str, len, no_ascii, stdout);
-}
-
-static void
-hex2stdout(const uint8_t * b_str, int len, int no_ascii)
-{
-    dStrHex((const char *)b_str, len, no_ascii);
 }
 
 /* Returns 0 on success else -1 . */
 static int
-send_req_lin_bsg(int fd, struct smp_req_resp * rresp, bool verbose)
+send_req_lin_bsg(int fd, struct smp_req_resp * rresp, int vb)
 {
     struct sg_io_v4 hdr;
     unsigned char cmd[16];      /* unused */
@@ -478,8 +469,8 @@ send_req_lin_bsg(int fd, struct smp_req_resp * rresp, bool verbose)
 
     hdr.timeout = DEF_TIMEOUT_MS;
 
-    if (verbose)
-        printf("send_req_lin_bsg: dout_xfer_len=%u, din_xfer_len=%u, timeout=%u ms\n",
+    if (vb > 1)
+        qDebug("send_req_lin_bsg: dout_xfer_len=%u, din_xfer_len=%u, timeout=%u ms",
                hdr.dout_xfer_len, hdr.din_xfer_len, hdr.timeout);
 
     res = ioctl(fd, SG_IO, &hdr);
@@ -490,13 +481,13 @@ send_req_lin_bsg(int fd, struct smp_req_resp * rresp, bool verbose)
     res = hdr.din_xfer_len - hdr.din_resid;
     rresp->act_response_len = res;
     /* was: rresp->act_response_len = -1; */
-    if (verbose) {
-        printf("send_req_lin_bsg: driver_status=%u, transport_status=%u\n", hdr.driver_status, hdr.transport_status);
-        printf("    device_status=%u, duration=%u, info=%u\n", hdr.device_status, hdr.duration, hdr.info);
-        printf("    din_resid=%d, dout_resid=%d\n", hdr.din_resid, hdr.dout_resid);
-        printf("  smp_req_resp::max_response_len=%d act_response_len=%d\n", rresp->max_response_len, res);
-        printf("  response (din_resid might exclude CRC):\n");
-        hex2stdout(rresp->response, (res > 0) ? res : (int)hdr.din_xfer_len, 1);
+    if (vb > 1) {
+        qDebug("send_req_lin_bsg: driver_status=%u, transport_status=%u", hdr.driver_status, hdr.transport_status);
+        qDebug("    device_status=%u, duration=%u, info=%u", hdr.device_status, hdr.duration, hdr.info);
+        qDebug("    din_resid=%d, dout_resid=%d", hdr.din_resid, hdr.dout_resid);
+        qDebug("  smp_req_resp::max_response_len=%d act_response_len=%d", rresp->max_response_len, res);
+        qDebug("  response (din_resid might exclude CRC):");
+        hex2stdout((const char *)rresp->response, (res > 0) ? res : (int)hdr.din_xfer_len, 1);
     }
     if (hdr.driver_status)
         rresp->transport_err = hdr.driver_status;
@@ -508,22 +499,22 @@ send_req_lin_bsg(int fd, struct smp_req_resp * rresp, bool verbose)
 }
 
 static int
-smp_send_req(const struct smp_target_obj * tobj, struct smp_req_resp * rresp, bool verbose)
+smp_send_req(const struct smp_target_obj * tobj, struct smp_req_resp * rresp, int vb)
 {
     if ((NULL == tobj) || (0 == tobj->opened)) {
-        printf("smp_send_req: nothing open??\n");
+        qDebug("smp_send_req: nothing open??");
         return -1;
     }
     if (I_SGV4 == tobj->interface_selector)
-        return send_req_lin_bsg(tobj->fd, rresp, verbose);
+        return send_req_lin_bsg(tobj->fd, rresp, vb);
 #if 0
     else if (I_MPT == tobj->interface_selector)
-        return send_req_mpt(tobj->fd, tobj->subvalue, tobj->sas_addr64, rresp, verbose);
+        return send_req_mpt(tobj->fd, tobj->subvalue, tobj->sas_addr64, rresp, vb);
     else if (I_AAC == tobj->interface_selector)
-        return send_req_aac(tobj->fd, tobj->subvalue, tobj->sas_addr, rresp, verbose);
+        return send_req_aac(tobj->fd, tobj->subvalue, tobj->sas_addr, rresp, vb);
 #endif
     else {
-        printf("smp_send_req: no transport??\n");
+        qDebug("smp_send_req: no transport??");
         return -1;
     }
 }
@@ -560,7 +551,7 @@ smp_get_func_res_str(int func_res, int buff_len, char * buff)
  * points. Returns -3 (or less) -> SMP_LIB errors negated (-4 - smp_err),
  * -1 for other errors. */
 static int
-get_num_phys(struct smp_target_obj * top, bool * t2t_routingp, bool vb)
+get_num_phys(struct smp_target_obj * top, bool * t2t_routingp, int vb)
 {
     bool t2t;
     int len, res, k, act_resplen;
@@ -572,16 +563,16 @@ get_num_phys(struct smp_target_obj * top, bool * t2t_routingp, bool vb)
     uint8_t * free_rp = NULL;
     char b[256];
 
-    rp = smp_memalign(SMP_FN_REPORT_GENERAL_RESP_LEN, 0, &free_rp, false);
+    rp = smp_memalign(SMP_FN_REPORT_GENERAL_RESP_LEN, 0, &free_rp, vb);
     if (NULL == rp) {
-        printf("%s: heap allocation problem\n", __func__);
+        qDebug("%s: heap allocation problem\n", __func__);
         return SMP_LIB_RESOURCE_ERROR;
     }
     if (vb) {
-        printf("    Report general request: ");
+        QString msg = "    Report general request: ";
         for (k = 0; k < (int)sizeof(smp_req); ++k)
-            printf("%02x ", smp_req[k]);
-        printf("\n");
+            msg += QString("%1 ").arg(smp_req[k], 2, 16, QLatin1Char('0'));
+        qDebug() << msg;
     }
     memset(&smp_rr, 0, sizeof(smp_rr));
     smp_rr.request_len = sizeof(smp_req);
@@ -591,18 +582,18 @@ get_num_phys(struct smp_target_obj * top, bool * t2t_routingp, bool vb)
     res = smp_send_req(top, &smp_rr, vb);
 
     if (res) {
-        printf("RG smp_send_req failed, res=%d\n", res);
+        qDebug("RG smp_send_req failed, res=%d", res);
         ret = -1;
         goto finish;
     }
     if (smp_rr.transport_err) {
-        printf("RG smp_send_req transport_error=%d\n", smp_rr.transport_err);
+        qDebug("RG smp_send_req transport_error=%d", smp_rr.transport_err);
         ret = -1;
         goto finish;
     }
     act_resplen = smp_rr.act_response_len;
     if ((act_resplen >= 0) && (act_resplen < 4)) {
-        printf("RG response too short, len=%d\n", act_resplen);
+        qDebug("RG response too short, len=%d", act_resplen);
         ret = -4 - SMP_LIB_CAT_MALFORMED;
         goto finish;
     }
@@ -612,30 +603,30 @@ get_num_phys(struct smp_target_obj * top, bool * t2t_routingp, bool vb)
         if (len < 0) {
             len = 0;
             if (vb)
-                printf("unable to determine RG response length\n");
+                qDebug("unable to determine RG response length");
         }
     }
     len = 4 + (len * 4);        /* length in bytes, excluding 4 byte CRC */
     if ((act_resplen >= 0) && (len > act_resplen)) {
         if (vb)
-            printf("actual RG response length [%d] less than deduced length [%d]\n", act_resplen, len);
+            qDebug("actual RG response length [%d] less than deduced length [%d]", act_resplen, len);
         len = act_resplen;
     }
     /* ignore --hex and --raw */
     if (SMP_FRAME_TYPE_RESP != rp[0]) {
-        printf("RG expected SMP frame response type, got=0x%x\n", rp[0]);
+        qDebug("RG expected SMP frame response type, got=0x%x", rp[0]);
         ret = -4 - SMP_LIB_CAT_MALFORMED;
         goto finish;
     }
     if (rp[1] != smp_req[1]) {
-        printf("RG Expected function code=0x%x, got=0x%x\n", smp_req[1], rp[1]);
+        qDebug("RG Expected function code=0x%x, got=0x%x", smp_req[1], rp[1]);
         ret = -4 - SMP_LIB_CAT_MALFORMED;
         goto finish;
     }
     if (rp[2]) {
         if (vb) {
             cp = smp_get_func_res_str(rp[2], sizeof(b), b);
-            printf("Report General result: %s\n", cp);
+            qDebug("Report General result: %s", cp);
         }
         ret = -4 - rp[2];
         goto finish;
@@ -643,8 +634,8 @@ get_num_phys(struct smp_target_obj * top, bool * t2t_routingp, bool vb)
     t2t = (len > 10) ? !!(0x80 & rp[10]) : false;
     if (t2t_routingp)
         *t2t_routingp = t2t;
-    if (vb)
-        printf("%s: len=%d, number of phys: %u, t2t=%d\n", __func__, len, rp[9], (int)t2t);
+    if (vb > 1)
+        qDebug("%s: len=%d, number of phys: %u, t2t=%d", __func__, len, rp[9], (int)t2t);
     ret = (len > 9) ? rp[9] : 0;
 
 finish:
@@ -656,7 +647,7 @@ finish:
 /* Calls do_discover() multiple times. Summarizes info into one
  * line per phy. Returns 0 if ok, else function result. */
 static int
-do_multiple(struct smp_target_obj * top)
+do_multiple(struct smp_target_obj * top, int vb)
 {
     int ret = 0;
     int num;
@@ -664,13 +655,13 @@ do_multiple(struct smp_target_obj * top)
     uint8_t * rp = NULL;
     uint8_t * free_rp = NULL;
 
-    rp = smp_memalign(SMP_FN_DISCOVER_RESP_LEN, 0, &free_rp, false);
+    rp = smp_memalign(SMP_FN_DISCOVER_RESP_LEN, 0, &free_rp, vb);
     if (NULL == rp) {
-        printf("%s: heap allocation problem\n", __func__);
+        qDebug("%s: heap allocation problem", __func__);
         return SMP_LIB_RESOURCE_ERROR;
     }
 
-    num = get_num_phys(top, &has_t2t, true);
+    num = get_num_phys(top, &has_t2t, vb);
 
 finish:
     if (free_rp)
@@ -687,7 +678,7 @@ open_lin_bsg_device(QString dev_name)
     ret = open(dev_name.toStdString().c_str(), O_RDWR);
     if (ret < 0) {
         perror(QString("%1: open() device node failed").arg(__func__).toStdString().c_str());
-        printf("\t\ttried to open %s\n", dev_name.toStdString().c_str());
+        qDebug("\t\ttried to open %s", dev_name.toStdString().c_str());
     }
     return ret;
 }
@@ -714,13 +705,13 @@ smp_initiator_close(struct smp_target_obj * tobj)
     int res;
 
     if ((NULL == tobj) || (0 == tobj->opened)) {
-        printf("%s: nothing open??\n", __func__);
+        qDebug("%s: nothing open??", __func__);
         return -1;
     }
 
     res = close(tobj->fd);
     if (res < 0) {
-        printf("failed to close %s\n", tobj->device_name.toStdString().c_str());
+        qDebug("failed to close %s", tobj->device_name.toStdString().c_str());
     }
 
     tobj->opened = 0;
@@ -738,14 +729,15 @@ bsgdev_scan_select(const struct dirent * s)
 }
 
 void
-smpDiscover(Widget* pw)
+smpDiscover(Widget* pw, int vb)
 {
     int num, k, res;
     struct dirent ** namelist;
     struct smp_target_obj tobj;
     QString device_name;
 
-    printf("discovering...\n");
+    if (vb)
+        qDebug("discovering...");
 
     num = scandir(dev_bsg, &namelist, bsgdev_scan_select, alphasort);
     if (num < 0) {  /* HBA mid level may not be loaded */
@@ -757,6 +749,9 @@ smpDiscover(Widget* pw)
     for (k = 0; k < num; ++k) {
         device_name = QString("%1/%2").arg(dev_bsg, namelist[k]->d_name);
         pw->appendMessage(device_name);
+        if (vb) {
+            qDebug() << "exploring " << device_name;
+        }
 
         res = smp_initiator_open(device_name, &tobj);
         if (res < 0) {
@@ -764,9 +759,10 @@ smpDiscover(Widget* pw)
             continue;
         }
 
-        res = do_multiple(&tobj);
-        if (res)
-            printf("Exit status %d indicates error detected\n", res);
+        res = do_multiple(&tobj, vb);
+        if (res) {
+            qDebug("Exit status %d indicates error detected", res);
+        }
 
         smp_initiator_close(&tobj);
     }
