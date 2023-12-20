@@ -58,7 +58,7 @@ void DeviceFunc::setSlot(QString path, QString device, QString expander, int iex
 
     // the device should be within this expander's domain
     if (sl <= 0 || sl > 28 || iexp < 0 || iexp > 3) {
-        printf("Device [%s] setting error!\n", device.toStdString().c_str());
+        qDebug() << "Device [" << device << "] setting error!";
         return;
     }
 
@@ -103,7 +103,7 @@ void ExpanderFunc::setController(QString path, QString expander, int iexp)
 {
     // Only expanders 0-3 should be taken care of...
     if (iexp < 0 || iexp > 3) {
-        printf("Expander [%s] setting error!\n", expander.toStdString().c_str());
+        qDebug() << "Expander [" << expander << "] setting error!";
         return;
     }
 

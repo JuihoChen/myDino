@@ -470,8 +470,8 @@ send_req_lin_bsg(int fd, struct smp_req_resp * rresp, int vb)
     hdr.timeout = DEF_TIMEOUT_MS;
 
     if (vb > 1)
-        qDebug("send_req_lin_bsg: dout_xfer_len=%u, din_xfer_len=%u, timeout=%u ms",
-               hdr.dout_xfer_len, hdr.din_xfer_len, hdr.timeout);
+        qDebug("%s: dout_xfer_len=%u, din_xfer_len=%u, timeout=%u ms",
+               __func__, hdr.dout_xfer_len, hdr.din_xfer_len, hdr.timeout);
 
     res = ioctl(fd, SG_IO, &hdr);
     if (res) {
@@ -482,7 +482,7 @@ send_req_lin_bsg(int fd, struct smp_req_resp * rresp, int vb)
     rresp->act_response_len = res;
     /* was: rresp->act_response_len = -1; */
     if (vb > 1) {
-        qDebug("send_req_lin_bsg: driver_status=%u, transport_status=%u", hdr.driver_status, hdr.transport_status);
+        qDebug("%s: driver_status=%u, transport_status=%u", __func__, hdr.driver_status, hdr.transport_status);
         qDebug("    device_status=%u, duration=%u, info=%u", hdr.device_status, hdr.duration, hdr.info);
         qDebug("    din_resid=%d, dout_resid=%d", hdr.din_resid, hdr.dout_resid);
         qDebug("  smp_req_resp::max_response_len=%d act_response_len=%d", rresp->max_response_len, res);
@@ -502,7 +502,7 @@ static int
 smp_send_req(const struct smp_target_obj * tobj, struct smp_req_resp * rresp, int vb)
 {
     if ((NULL == tobj) || (0 == tobj->opened)) {
-        qDebug("smp_send_req: nothing open??");
+        qDebug("%s: nothing open??", __func__);
         return -1;
     }
     if (I_SGV4 == tobj->interface_selector)
@@ -514,7 +514,7 @@ smp_send_req(const struct smp_target_obj * tobj, struct smp_req_resp * rresp, in
         return send_req_aac(tobj->fd, tobj->subvalue, tobj->sas_addr, rresp, vb);
 #endif
     else {
-        qDebug("smp_send_req: no transport??");
+        qDebug("%s: no transport??", __func__);
         return -1;
     }
 }
@@ -551,23 +551,15 @@ smp_get_func_res_str(int func_res, int buff_len, char * buff)
  * points. Returns -3 (or less) -> SMP_LIB errors negated (-4 - smp_err),
  * -1 for other errors. */
 static int
-get_num_phys(struct smp_target_obj * top, bool * t2t_routingp, int vb)
+get_num_phys(struct smp_target_obj * top, uint8_t * rp, bool * t2t_routingp, int vb)
 {
     bool t2t;
     int len, res, k, act_resplen;
-    int ret = 0;
     char * cp;
     uint8_t smp_req[] = {SMP_FRAME_TYPE_REQ, SMP_FN_REPORT_GENERAL, 0, 0, 0, 0, 0, 0};
     struct smp_req_resp smp_rr;
-    uint8_t * rp = NULL;
-    uint8_t * free_rp = NULL;
     char b[256];
 
-    rp = smp_memalign(SMP_FN_REPORT_GENERAL_RESP_LEN, 0, &free_rp, vb);
-    if (NULL == rp) {
-        qDebug("%s: heap allocation problem\n", __func__);
-        return SMP_LIB_RESOURCE_ERROR;
-    }
     if (vb) {
         QString msg = "    Report general request: ";
         for (k = 0; k < (int)sizeof(smp_req); ++k)
@@ -583,19 +575,16 @@ get_num_phys(struct smp_target_obj * top, bool * t2t_routingp, int vb)
 
     if (res) {
         qDebug("RG smp_send_req failed, res=%d", res);
-        ret = -1;
-        goto finish;
+        return -1;
     }
     if (smp_rr.transport_err) {
         qDebug("RG smp_send_req transport_error=%d", smp_rr.transport_err);
-        ret = -1;
-        goto finish;
+        return -1;
     }
     act_resplen = smp_rr.act_response_len;
     if ((act_resplen >= 0) && (act_resplen < 4)) {
         qDebug("RG response too short, len=%d", act_resplen);
-        ret = -4 - SMP_LIB_CAT_MALFORMED;
-        goto finish;
+        return -4 - SMP_LIB_CAT_MALFORMED;
     }
     len = rp[3];
     if ((0 == len) && (0 == rp[2])) {
@@ -615,33 +604,34 @@ get_num_phys(struct smp_target_obj * top, bool * t2t_routingp, int vb)
     /* ignore --hex and --raw */
     if (SMP_FRAME_TYPE_RESP != rp[0]) {
         qDebug("RG expected SMP frame response type, got=0x%x", rp[0]);
-        ret = -4 - SMP_LIB_CAT_MALFORMED;
-        goto finish;
+        return -4 - SMP_LIB_CAT_MALFORMED;
     }
     if (rp[1] != smp_req[1]) {
         qDebug("RG Expected function code=0x%x, got=0x%x", smp_req[1], rp[1]);
-        ret = -4 - SMP_LIB_CAT_MALFORMED;
-        goto finish;
+        return -4 - SMP_LIB_CAT_MALFORMED;
     }
     if (rp[2]) {
         if (vb) {
             cp = smp_get_func_res_str(rp[2], sizeof(b), b);
             qDebug("Report General result: %s", cp);
         }
-        ret = -4 - rp[2];
-        goto finish;
+        return -4 - rp[2];
     }
     t2t = (len > 10) ? !!(0x80 & rp[10]) : false;
     if (t2t_routingp)
         *t2t_routingp = t2t;
     if (vb > 1)
         qDebug("%s: len=%d, number of phys: %u, t2t=%d", __func__, len, rp[9], (int)t2t);
-    ret = (len > 9) ? rp[9] : 0;
+    return (len > 9) ? rp[9] : 0;
+}
 
-finish:
-    if (free_rp)
-        free(free_rp);
-    return ret;
+/* Returns length of response in bytes, excluding the CRC on success,
+   -3 (or less) -> SMP_LIB errors negated (-4 - smp_err),
+   -1 for other errors */
+static int
+do_discover(struct smp_target_obj * top, int disc_phy_id, uint8_t * resp, int max_resp_len, int vb)
+{
+    return 0;
 }
 
 /* Calls do_discover() multiple times. Summarizes info into one
@@ -650,18 +640,45 @@ static int
 do_multiple(struct smp_target_obj * top, int vb)
 {
     int ret = 0;
-    int num;
+    int len, k, num;
     bool has_t2t = false;
     uint8_t * rp = NULL;
     uint8_t * free_rp = NULL;
 
-    rp = smp_memalign(SMP_FN_DISCOVER_RESP_LEN, 0, &free_rp, vb);
+    len = qMax(SMP_FN_DISCOVER_RESP_LEN, SMP_FN_REPORT_GENERAL_RESP_LEN);
+    rp = smp_memalign(len, 0, &free_rp, vb);
     if (NULL == rp) {
         qDebug("%s: heap allocation problem", __func__);
         return SMP_LIB_RESOURCE_ERROR;
     }
 
-    num = get_num_phys(top, &has_t2t, vb);
+    num = get_num_phys(top, rp, &has_t2t, vb);
+    if (vb) {
+        QString enclid;
+        // ENCLOSURE LOGICAL IDENTIFIER (byte 12-19)
+        for (k = 12; k <= 19; ++k) {
+            enclid += QString("%1").arg(rp[k], 2, 16, QLatin1Char('0'));
+        }
+        qDebug() << "  ENCLOSURE LOGICAL IDENTIFIER: " << enclid;
+    }
+
+    for (k = 0; k < num; ++k) {
+        len = do_discover(top, k, rp, SMP_FN_DISCOVER_RESP_LEN, vb);
+        if (len < 0)
+            ret = (len < -2) ? (-4 - len) : len;
+        else
+            ret = 0;
+
+        if (SMP_FRES_NO_PHY == ret) {
+            ret = 0;   /* expected, end condition */
+            goto finish;
+        } else if (SMP_FRES_PHY_VACANT == ret) {
+            printf("  phy %3d: inaccessible (phy vacant)\n", k);
+            continue;
+        } else if (ret)
+            goto finish;
+
+    }
 
 finish:
     if (free_rp)
@@ -678,7 +695,7 @@ open_lin_bsg_device(QString dev_name)
     ret = open(dev_name.toStdString().c_str(), O_RDWR);
     if (ret < 0) {
         perror(QString("%1: open() device node failed").arg(__func__).toStdString().c_str());
-        qDebug("\t\ttried to open %s", dev_name.toStdString().c_str());
+        qDebug() << "\t\ttried to open " << dev_name;
     }
     return ret;
 }
@@ -711,7 +728,7 @@ smp_initiator_close(struct smp_target_obj * tobj)
 
     res = close(tobj->fd);
     if (res < 0) {
-        qDebug("failed to close %s", tobj->device_name.toStdString().c_str());
+        qDebug() << "failed to close " << tobj->device_name;
     }
 
     tobj->opened = 0;
@@ -740,7 +757,7 @@ smpDiscover(Widget* pw, int vb)
         qDebug("discovering...");
 
     num = scandir(dev_bsg, &namelist, bsgdev_scan_select, alphasort);
-    if (num < 0) {  /* HBA mid level may not be loaded */
+    if (num <= 0) {  /* HBA mid level may not be loaded */
         perror("scandir");
         pw->appendMessage("HBA mid level module may not be loaded.");
         return;
@@ -750,7 +767,7 @@ smpDiscover(Widget* pw, int vb)
         device_name = QString("%1/%2").arg(dev_bsg, namelist[k]->d_name);
         pw->appendMessage(device_name);
         if (vb) {
-            qDebug() << "exploring " << device_name;
+            qDebug() << "----> exploring " << device_name;
         }
 
         res = smp_initiator_open(device_name, &tobj);

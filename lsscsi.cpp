@@ -62,8 +62,8 @@ struct item_t {
     int d_type;
 };
 
-static struct item_t aa_first;
-static struct item_t enclosure_device;
+struct item_t aa_first;
+struct item_t enclosure_device;
 
 static const char * scsi_device_types[] =
 {
