@@ -1,3 +1,4 @@
+#include <byteswap.h>
 #include <dirent.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -218,6 +219,25 @@ static struct smp_val_name smp_func_results[] =
     {0x0, NULL},
 };
 
+static const char * smp_short_attached_device_type[] = {
+    "",         /* was "no " */
+    "",         /* was "end" */
+    "exp",
+    "fex",      /* obsolete in sas2r05a */
+    "res",
+    "res",
+    "res",
+    "res",
+};
+
+static inline uint64_t sg_get_unaligned_be64(const void *p)
+{
+    uint64_t u;
+
+    memcpy(&u, p, 8);
+    return bswap_64(u);
+}
+
 static uint32_t
 smp_get_page_size(void)
 {
@@ -273,11 +293,11 @@ smp_memalign(uint32_t num_bytes, uint32_t align_to, uint8_t ** buff_to_free, int
         res = (uint8_t *)wp;
 
         if (vb > 2) {
-            QString msg = QString("%1: posix_ma, len=%2, ").arg(__func__).arg(num_bytes);
+            QString msg = QString::asprintf("%s: posix_ma, len=%d, ", __func__, num_bytes);
             if (buff_to_free) {
-                msg += QString("wrkBuffp=0x%1, ").arg((long)res, 0, 16);
+                msg += QString::asprintf("wrkBuffp=%p, ", res);
             }
-            msg += QString("psz=%1, rp=0x%2").arg(psz).arg((long)res, 0, 16);
+            msg += QString::asprintf("psz=%u, rp=%p", (unsigned)psz, res);
             qDebug() << msg;
         }
         return res;
@@ -297,11 +317,11 @@ smp_memalign(uint32_t num_bytes, uint32_t align_to, uint8_t ** buff_to_free, int
         res = (uint8_t *)(void *)
             (((uintptr_t)wrkBuff + align_1) & (~align_1));
         if (vb > 2) {
-            QString msg = QString("%1: hack, len=%2, ").arg(__func__).arg(num_bytes);
+            QString msg = QString::asprintf("%s: hack, len=%d, ", __func__, num_bytes);
             if (buff_to_free) {
-                msg += QString("buff_to_free=0x%1, ").arg((long)wrkBuff, 0, 16);
+                msg += QString::asprintf("buff_to_free=%p, ", wrkBuff);
             }
-            msg += QString("align_1=%1, rp=%2").arg((unsigned long)align_1).arg((long)res, 0, 16);
+            msg += QString::asprintf("align_1=%lu, rp=%p", (unsigned long)align_1, res);
             qDebug() << msg;
         }
         return res;
@@ -563,7 +583,7 @@ get_num_phys(struct smp_target_obj * top, uint8_t * rp, bool * t2t_routingp, int
     if (vb) {
         QString msg = "    Report general request: ";
         for (k = 0; k < (int)sizeof(smp_req); ++k)
-            msg += QString("%1 ").arg(smp_req[k], 2, 16, QLatin1Char('0'));
+            msg += QString::asprintf("%02x ", smp_req[k]);
         qDebug() << msg;
     }
     memset(&smp_rr, 0, sizeof(smp_rr));
@@ -631,7 +651,76 @@ get_num_phys(struct smp_target_obj * top, uint8_t * rp, bool * t2t_routingp, int
 static int
 do_discover(struct smp_target_obj * top, int disc_phy_id, uint8_t * resp, int max_resp_len, int vb)
 {
-    return 0;
+    int len, res, k, act_resplen;
+    char * cp;
+    uint8_t smp_req[] = {SMP_FRAME_TYPE_REQ, SMP_FN_DISCOVER, 0, 0,
+                         0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0};
+    char b[256];
+    struct smp_req_resp smp_rr;
+
+    memset(resp, 0, max_resp_len);
+    len = (max_resp_len - 8) / 4;
+    smp_req[2] = (len < 0x100) ? len : 0xff; /* Allocated Response Len */
+    smp_req[3] = 2; /* Request Length: in dwords */
+    smp_req[9] = disc_phy_id;
+    if (vb) {
+        QString msg = "    Discover request: ";
+        for (k = 0; k < (int)sizeof(smp_req); ++k)
+            msg += QString::asprintf("%02x ", smp_req[k]);
+        qDebug() << msg;
+    }
+    memset(&smp_rr, 0, sizeof(smp_rr));
+    smp_rr.request_len = sizeof(smp_req);
+    smp_rr.request = smp_req;
+    smp_rr.max_response_len = max_resp_len;
+    smp_rr.response = resp;
+    res = smp_send_req(top, &smp_rr, vb);
+
+    if (res) {
+        qDebug("smp_send_req failed, res=%d", res);
+        return -1;
+    }
+    if (smp_rr.transport_err) {
+        qDebug("smp_send_req transport_error=%d", smp_rr.transport_err);
+        return -1;
+    }
+    act_resplen = smp_rr.act_response_len;
+    if ((act_resplen >= 0) && (act_resplen < 4)) {
+        qDebug("response too short, len=%d", act_resplen);
+        return -4 - SMP_LIB_CAT_MALFORMED;
+    }
+    len = resp[3];
+    if ((0 == len) && (0 == resp[2])) {
+        len = smp_get_func_def_resp_len(resp[1]);
+        if (len < 0) {
+            len = 0;
+            if (vb)
+                qDebug("unable to determine response length");
+        }
+    }
+    len = 4 + (len * 4);        /* length in bytes, excluding 4 byte CRC */
+    if ((act_resplen >= 0) && (len > act_resplen)) {
+        if (vb)
+            qDebug("actual response length [%d] less than deduced length [%d]", act_resplen, len);
+        len = act_resplen;
+    }
+    /* ignore --hex and --raw */
+    if (SMP_FRAME_TYPE_RESP != resp[0]) {
+        qDebug("expected SMP frame response type, got=0x%x", resp[0]);
+        return -4 - SMP_LIB_CAT_MALFORMED;
+    }
+    if (resp[1] != smp_req[1]) {
+        qDebug("RG Expected function code=0x%x, got=0x%x", smp_req[1], resp[1]);
+        return -4 - SMP_LIB_CAT_MALFORMED;
+    }
+    if (resp[2]) {
+        if (vb) {
+            cp = smp_get_func_res_str(resp[2], sizeof(b), b);
+            qDebug("Discover result: %s", cp);
+        }
+        return -4 - resp[2];
+    }
+    return len;
 }
 
 /* Calls do_discover() multiple times. Summarizes info into one
@@ -640,10 +729,14 @@ static int
 do_multiple(struct smp_target_obj * top, int vb)
 {
     int ret = 0;
-    int len, k, num;
     bool has_t2t = false;
+    bool virt;
+    int len, k, num, adt, negot, dsn;
+    uint64_t ull, adn, expander_sa = 0, enclid;
+    const char * cp;
     uint8_t * rp = NULL;
     uint8_t * free_rp = NULL;
+    QString os;
 
     len = qMax(SMP_FN_DISCOVER_RESP_LEN, SMP_FN_REPORT_GENERAL_RESP_LEN);
     rp = smp_memalign(len, 0, &free_rp, vb);
@@ -653,14 +746,9 @@ do_multiple(struct smp_target_obj * top, int vb)
     }
 
     num = get_num_phys(top, rp, &has_t2t, vb);
-    if (vb) {
-        QString enclid;
-        // ENCLOSURE LOGICAL IDENTIFIER (byte 12-19)
-        for (k = 12; k <= 19; ++k) {
-            enclid += QString("%1").arg(rp[k], 2, 16, QLatin1Char('0'));
-        }
-        qDebug() << "  ENCLOSURE LOGICAL IDENTIFIER: " << enclid;
-    }
+    // ENCLOSURE LOGICAL IDENTIFIER (bytes 12-19, in RG response)
+    enclid = sg_get_unaligned_be64(rp + 12);
+    qDebug("  Enclosure Logical Identifier: %lx", enclid);
 
     for (k = 0; k < num; ++k) {
         len = do_discover(top, k, rp, SMP_FN_DISCOVER_RESP_LEN, vb);
@@ -678,6 +766,178 @@ do_multiple(struct smp_target_obj * top, int vb)
         } else if (ret)
             goto finish;
 
+        /* SAS Address (bytes 16-23) */
+        ull = sg_get_unaligned_be64(rp + 16);
+        if (0 == expander_sa)
+            expander_sa = ull;
+        else {
+            if (ull != expander_sa) {
+                if (ull > 0) {
+                    qDebug(">> expander's SAS address is changing?? phy_id=%d, was=%lx, now=%lx", rp[9], expander_sa, ull);
+                    expander_sa = ull;
+                } else if (vb)
+                    qDebug(">> expander's SAS address shown as 0 at phy_id=%d", rp[9]);
+            }
+        }
+
+        /* Routing Attribute */
+        switch(rp[44] & 0xf) {
+        case 0:
+            cp = "D";
+            break;
+        case 1:
+            cp = "S";
+            break;
+        case 2:
+            /* table routing phy when expander does t2t is Universal */
+            cp = has_t2t ? "U" : "T";
+            break;
+        default:
+            cp = "R";
+            break;
+        }
+
+        /* Device Slot Number */
+        dsn = ((len > 108) && (0xff != rp[108])) ? rp[108] : -1;
+
+        /* Negotiated Logical Link Rate */
+        negot = rp[13] & 0xf;
+        switch (negot) {
+        case 1:
+            qDebug("  phy %3d:%s:disabled  dsn=%d", rp[9], cp, dsn);
+            continue;   /* N.B. not break; finished with this line/phy */
+        case 2:
+            qDebug("  phy %3d:%s:reset problem  dsn=%d", rp[9], cp, dsn);
+            continue;
+        case 3:
+            qDebug("  phy %3d:%s:spinup hold  dsn=%d", rp[9], cp, dsn);
+            continue;
+        case 4:
+            qDebug("  phy %3d:%s:port selector  dsn=%d", rp[9], cp, dsn);
+            continue;
+        case 5:
+            qDebug("  phy %3d:%s:reset in progress  dsn=%d", rp[9], cp, dsn);
+            continue;
+        case 6:
+            qDebug("  phy %3d:%s:unsupported phy attached  dsn=%d", rp[9], cp, dsn);
+            continue;
+        default:
+            /* keep going in this loop, probably attached to something */
+            break;
+        }
+
+        /* attached SAS device type: 0-> none, 1-> (SAS or SATA end) device,
+         * 2-> expander, 3-> fanout expander (obsolete), rest-> reserved */
+        adt = ((0x70 & rp[12]) >> 4);
+        if (0 == adt)
+            continue;
+
+        /* Phy Identifier (byte 9) */
+        if (k != rp[9])
+            qDebug(">> requested phy_id=%d differs from response phy=%d", k, rp[9]);
+
+        if ((0 == adt) || (adt > 3)) {
+            os = QString::asprintf("  phy %3d:%s:attached:[0000000000000000:00]", k, cp);
+            if (len < 64) {
+                qDebug() << os;
+                continue;
+            }
+            if (-1 != dsn) {
+                os += QString::asprintf("  dsn=%d", dsn);
+                qDebug() << os;
+            }
+            continue;
+        }
+
+        /* Attached SAS Address (bytes 16-23) */
+        ull = sg_get_unaligned_be64(rp + 24);
+        /* Virtual Phy (byte 43 bit 8) */
+        virt = !!(0x80 & rp[43]);
+        if (len > 59) {
+            /* Attached Device Name (bytes 52-59), Attached Phy Identifier (byte 32) */
+            adn = sg_get_unaligned_be64(rp + 52);
+            os = QString::asprintf("  phy %3d:%s:attached:[%016lx:%02d %016lx %s%s",
+                        k, cp, ull, rp[32], adn, smp_short_attached_device_type[adt], (virt ? " V" : ""));
+        } else
+            os = QString::asprintf("  phy %3d:%s:attached:[%016lx:%02d %s%s",
+                        k, cp, ull, rp[32], smp_short_attached_device_type[adt], (virt ? " V" : ""));
+
+        /* 0 : 0 : 0 : 0 :
+           ATTACHED SSP INITIATOR : ATTACHED STP INITIATOR : ATTACHED SMP INITIATOR : ATTACHED SATA HOST */
+        if (rp[14] & 0xf) {
+            QString plus = "";
+            os += " i(";
+            if (rp[14] & 0x8) {
+                os += "SSP";
+                plus = "+";
+            }
+            if (rp[14] & 0x4) {
+                os += plus + "STP";
+                plus = "+";
+            }
+            if (rp[14] & 0x2) {
+                os += plus + "SMP",
+                plus = "+";
+            }
+            if (rp[14] & 0x1) {
+                os += plus + "SATA";
+                plus = "+";
+            }
+            os += ")";
+        }
+        /* ATTACHED SATA PORT SELECTOR : 0 : 0 : 0 :
+           ATTACHED SSP TARGET : ATTACHED STP TARGET : ATTACHED SMP TARGET : ATTACHED SATA DEVICE */
+        if (rp[15] & 0xf) {
+            QString plus = "";
+            os += " t(";
+            if (rp[15] & 0x80) {
+                os += "PORT_SEL";
+                plus = "+";
+            }
+            if (rp[15] & 0x8) {
+                os += plus + "SSP";
+                plus = "+";
+            }
+            if (rp[15] & 0x4) {
+                os += plus + "STP";
+                plus = "+";
+            }
+            if (rp[15] & 0x2) {
+                os += plus + "SMP";
+                plus = "+";
+            }
+            if (rp[15] & 0x1) {
+                os += plus + "SATA";
+                plus = "+";
+            }
+            os += ")";
+        }
+        os += "]";
+        switch(negot) {
+        case 8:
+            cp = "  1.5 Gbps";
+            break;
+        case 9:
+            cp = "  3 Gbps";
+            break;
+        case 0xa:
+            cp = "  6 Gbps";
+            break;
+        case 0xb:
+            cp = "  12 Gbps";
+            break;
+        case 0xc:
+            cp = "  22.5 Gbps";
+            break;
+        default:
+            cp = "";
+            break;
+        }
+        os += cp;
+        if (-1 != dsn) {
+            os += QString::asprintf("  dsn=%d", dsn);
+        }
+        qDebug() << os;
     }
 
 finish:

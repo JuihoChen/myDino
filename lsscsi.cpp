@@ -365,7 +365,7 @@ index_expander(QString dir_name, QString devname, int vb)
             qDebug("Found an enclosure wwid: %s", value);
         }
         int len = strlen(value) - 2;
-        unsigned i = QString(value + len).toInt(0, 16) >> 6;  // the last byte: 3F, 7F, BF or FF
+        unsigned i = QString(value + len).toInt(0, 16) >> 6;  // the last 2 bytes: "3F", "7F", "BF" or "FF"
         return i <= 3 ? i : -1;
     }
     return -1;
