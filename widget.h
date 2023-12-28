@@ -9,20 +9,14 @@ QT_BEGIN_NAMESPACE
 namespace Ui { class Widget; }
 QT_END_NAMESPACE
 
-extern int verbose;
+typedef struct ST_SLOTINFO _ST_SLOTINFO;
+typedef struct ST_GBOXINFO _ST_GBOXINFO;
 
 class DeviceFunc;
 class ExpanderFunc;
 
 extern DeviceFunc gDevices;
 extern ExpanderFunc gControllers;
-
-typedef struct {
-    QCheckBox *cb_slot;
-    QString d_name;
-    QString wwid;
-    QString block;
-} _ST_SLOTINFO;
 
 class DeviceFunc
 {
@@ -35,21 +29,16 @@ public:
     void clear();
     void setSlot(QString path, QString device, QString expander, int iexp);
     void setSlot(QString path, QString device, QString enclosure_device_name);
+    void setDiscoverResp(int dsn, uchar * src, int len);
     void setSlotLabel(int sl);
     int count() { return myCount; }
 
 private:
     void setSlot(QString path, QString device, int sl);
 
-    _ST_SLOTINFO *pSlotInfo;
+    _ST_SLOTINFO * const pSlotInfo;
     int myCount;
 };
-
-typedef struct {
-    QGroupBox *gbox;
-    QString d_name;
-    QString wwid;
-} _ST_GBOXINFO;
 
 class ExpanderFunc
 {
@@ -61,10 +50,11 @@ public:
 
     void clear();
     void setController(QString path, QString expander, int iexp);
+    void setDiscoverResp(uint64_t ull, uint64_t sa, uchar * src, int len);
     int count() { return myCount; }
 
 private:
-    _ST_GBOXINFO *pGboxInfo;
+    _ST_GBOXINFO * const pGboxInfo;
     int myCount;
 };
 
@@ -89,5 +79,7 @@ private:
 
     Ui::Widget *ui;
 };
+
+void gAppendMessage(QString message);
 
 #endif // WIDGET_H

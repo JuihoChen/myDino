@@ -1,3 +1,4 @@
+#include <QString>
 #include <byteswap.h>
 #include <cstdio>
 #include <dirent.h>
@@ -10,9 +11,7 @@
 #include <unistd.h>
 
 #include "widget.h"
-#include <QString>
-
-#include "./lsscsi.h"
+#include "lsscsi.h"
 
 #define FT_OTHER 0
 #define FT_BLOCK 1
@@ -417,7 +416,7 @@ compute_device_index(const char * device, const char * expander)
 
 /* List SCSI devices (LUs). */
 void
-list_sdevices(Widget * pw, int vb)
+list_sdevices(int vb)
 {
     int num, k, prev;
     struct dirent ** namelist;
@@ -432,7 +431,7 @@ list_sdevices(Widget * pw, int vb)
     if (num < 0) {  /* scsi mid level may not be loaded */
         path = QString("%1: scandir: %2").arg(__func__, buff);
         perror(path.toStdString().c_str());
-        pw->appendMessage("SCSI mid level module may not be loaded.");
+        gAppendMessage("SCSI mid level module may not be loaded.");
         return;
     }
 
@@ -442,7 +441,7 @@ list_sdevices(Widget * pw, int vb)
         if (enclosure_scan(path.toStdString().c_str())) {
             int e = index_expander(buff, name, vb);
             if (e < 0) {
-                pw->appendMessage(QString("error: cannot get expander[%1] wwid!").arg(name));
+                gAppendMessage(QString("error: cannot get expander[%1] wwid!").arg(name));
             } else {
                 if (false == hba9500) {
                     for (; prev < k; ++prev) {

@@ -1,21 +1,41 @@
-#include "widget.h"
-#include "./ui_widget.h"
-#include "./lsscsi.h"
-#include "./smp_discover.h"
-
 #include <QVBoxLayout>
 #include <QSystemTrayIcon>
 
+#include "ui_widget.h"
+#include "widget.h"
+#include "lsscsi.h"
+#include "smp_discover.h"
+
 #define NSLOT   112
 #define NEXPDR  4
+
+extern int verbose;
+
+struct ST_SLOTINFO {
+    QCheckBox *cb_slot;
+    QString d_name;
+    QString wwid;
+    QString block;
+    uchar discover_resp[SMP_FN_DISCOVER_RESP_LEN];
+    int resp_len;
+};
+
+struct ST_GBOXINFO {
+    QGroupBox *gbox;
+    QString d_name;
+    QString wwid;
+    uchar discover_resp[SMP_FN_DISCOVER_RESP_LEN];
+    int resp_len;
+};
+
+static QComboBox *gCombo = nullptr;
+static QTextBrowser *gText = nullptr;
 
 _ST_SLOTINFO gSlot[NSLOT];
 _ST_GBOXINFO gExpander[NEXPDR];
 
 DeviceFunc gDevices(gSlot);
 ExpanderFunc gControllers(gExpander);
-
-QComboBox *gCb = nullptr;
 
 void DeviceFunc::clear()
 {
@@ -27,6 +47,7 @@ void DeviceFunc::clear()
         pSlotInfo[i].d_name.clear();
         pSlotInfo[i].wwid.clear();
         pSlotInfo[i].block.clear();
+        pSlotInfo[i].resp_len = 0;
     }
     myCount = 0;
 }
@@ -61,9 +82,7 @@ void DeviceFunc::setSlot(QString path, QString device, QString expander, int iex
         qDebug() << "Device [" << device << "] setting error!";
         return;
     }
-
     sl = (iexp + 1) * 28 - sl;
-
     setSlot(path, device, sl);
 }
 
@@ -72,10 +91,35 @@ void DeviceFunc::setSlot(QString path, QString device, QString enclosure_device_
     setSlot(path, device, enclosure_device_name.right(2).toShort(0, 16) - 1);
 }
 
+void DeviceFunc::setDiscoverResp(int dsn, uchar * src, int len)
+{
+    if (0 != dsn && (unsigned)dsn <= NSLOT) {
+        int sl = dsn - 1;
+        // src area is bigger than discover_resp and zero set before discovery
+        memcpy(pSlotInfo[sl].discover_resp, src, SMP_FN_DISCOVER_RESP_LEN);
+        pSlotInfo[sl].resp_len = len;
+        pSlotInfo[sl].cb_slot->setEnabled(true);
+        if (len > 0) {
+            int negot = src[13] & 0xf;
+            if (negot == 1) {
+                QString title = pSlotInfo[sl].cb_slot->text();
+                pSlotInfo[sl].cb_slot->setText(title.append(" (phy off)"));
+            }
+            /* attached SAS device type: 0-> none, 1-> (SAS or SATA end) device,
+             * 2-> expander, 3-> fanout expander (obsolete), rest-> reserved */
+            int adt = ((0x70 & src[12]) >> 4);
+            if (0 == adt && !pSlotInfo[sl].d_name.isEmpty())
+                gAppendMessage(QString::asprintf("[%s] slot %d setting error!", __func__, dsn));
+        }
+    } else {
+        qDebug("[%s] incorrect DSN numbering:%d", __func__, dsn);
+    }
+}
+
 void DeviceFunc::setSlotLabel(int sl)
 {
-    if (gCb && !pSlotInfo[sl].d_name.isEmpty())
-    switch (gCb->currentIndex())
+    if (gCombo && !pSlotInfo[sl].d_name.isEmpty())
+    switch (gCombo->currentIndex())
     {
     case 0:
         pSlotInfo[sl].cb_slot->setText(pSlotInfo[sl].wwid.right(16));
@@ -95,6 +139,7 @@ void ExpanderFunc::clear()
         pGboxInfo[i].gbox->setTitle(QString("Expander-%1").arg(i+1));
         pGboxInfo[i].d_name.clear();
         pGboxInfo[i].wwid.clear();
+        pGboxInfo[i].resp_len = 0;
     }
     myCount = 0;
 }
@@ -102,7 +147,7 @@ void ExpanderFunc::clear()
 void ExpanderFunc::setController(QString path, QString expander, int iexp)
 {
     // Only expanders 0-3 should be taken care of...
-    if (iexp < 0 || iexp > 3) {
+    if ((unsigned)iexp > 3) {
         qDebug() << "Expander [" << expander << "] setting error!";
         return;
     }
@@ -120,6 +165,38 @@ void ExpanderFunc::setController(QString path, QString expander, int iexp)
         title + QString(" [%1]").arg(pGboxInfo[iexp].wwid.right(16).toUpper()));
 
     myCount++;
+}
+
+void ExpanderFunc::setDiscoverResp(uint64_t ull, uint64_t sa, uchar * src, int len)
+{
+    int el = (ull & 0xFF) >> 6;
+    // src area is bigger than discover_resp and zero set before discovery
+    memcpy(pGboxInfo[el].discover_resp, src, SMP_FN_DISCOVER_RESP_LEN);
+    pGboxInfo[el].resp_len = len;
+    if (len > 0) {
+        int negot = src[13] & 0xf;
+        const char* cp = "";
+        switch(negot) {
+        case 8:
+                cp = "1.5";
+                break;
+        case 9:
+                cp = "3";
+                break;
+        case 0xa:
+                cp = "6";
+                break;
+        case 0xb:
+                cp = "12";
+                break;
+        case 0xc:
+                cp = "22.5";
+                break;
+        }
+        QString title = pGboxInfo[el].gbox->title();
+        pGboxInfo[el].gbox->setTitle(
+            title.append(QString::asprintf(" [HBA:%lX/%s Gbps]", sa, cp)));
+    }
 }
 
 Widget::Widget(QWidget *parent)
@@ -185,10 +262,12 @@ Widget::Widget(QWidget *parent)
 
     appendMessage("Here lists the messages:");
 
-    gCb = ui->cbxSlot;
+    gCombo = ui->cbxSlot;
+    gText = ui->textBrowser;
     gDevices.clear();
     gControllers.clear();
-    list_sdevices(this, verbose);
+    list_sdevices(verbose);
+    slot_discover(verbose);
 }
 
 Widget::~Widget()
@@ -218,7 +297,8 @@ void Widget::refreshSlots()
     appendMessage("Refresh slots information...");
     gDevices.clear();
     gControllers.clear();
-    list_sdevices(this, verbose);
+    list_sdevices(verbose);
+    slot_discover(verbose);
     appendMessage(QString::asprintf("Found %d expanders and %d devices", gControllers.count(), gDevices.count()));
 }
 
@@ -226,11 +306,16 @@ void Widget::btnSmpDoitClicked()
 {
     if (ui->radDiscover->isChecked()) {
         appendMessage("Discover expanders...");
-        smpDiscover(this, verbose);
+        smpDiscover(verbose);
     }
 }
 
 void Widget::btnClearTBClicked()
 {
     ui->textBrowser->clear();  // Clear the default ui text
+}
+
+void gAppendMessage(QString message)
+{
+    if (gText) gText->append(message);
 }

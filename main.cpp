@@ -1,5 +1,5 @@
-#include <getopt.h>
 #include <QApplication>
+#include <getopt.h>
 
 #include "widget.h"
 

@@ -1,3 +1,4 @@
+#include <QWidget>
 #include <byteswap.h>
 #include <dirent.h>
 #include <fcntl.h>
@@ -7,93 +8,8 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 
-#include "./smp_discover.h"
-
-#define I_MPT   2
-#define I_SGV4  4
-#define I_AAC   6
-
-#define DEF_TIMEOUT_MS 20000    /* 20 seconds */
-
-/* SAS transport frame types associated with SMP */
-#define SMP_FRAME_TYPE_REQ                  0x40
-#define SMP_FRAME_TYPE_RESP                 0x41
-
-/* SMP function codes */
-#define SMP_FN_REPORT_GENERAL               0x0
-#define SMP_FN_REPORT_MANUFACTURER          0x1
-#define SMP_FN_READ_GPIO_REG                0x2
-#define SMP_FN_REPORT_SELF_CONFIG           0x3
-#define SMP_FN_REPORT_ZONE_PERMISSION_TBL   0x4
-#define SMP_FN_REPORT_ZONE_MANAGER_PASS     0x5
-#define SMP_FN_REPORT_BROADCAST             0x6
-#define SMP_FN_READ_GPIO_REG_ENH            0x7
-#define SMP_FN_DISCOVER                     0x10
-#define SMP_FN_REPORT_PHY_ERR_LOG           0x11
-#define SMP_FN_REPORT_PHY_SATA              0x12
-#define SMP_FN_REPORT_ROUTE_INFO            0x13
-#define SMP_FN_REPORT_PHY_EVENT             0x14
-/* #define SMP_FN_REPORT_PHY_BROADCAST 0x15  removed in sas2r13 */
-#define SMP_FN_DISCOVER_LIST                0x20  /* was 0x16 in sas2r10 */
-#define SMP_FN_REPORT_PHY_EVENT_LIST        0x21
-#define SMP_FN_REPORT_EXP_ROUTE_TBL_LIST    0x22  /* was 0x17 in sas2r10 */
-#define SMP_FN_CONFIG_GENERAL               0x80
-#define SMP_FN_ENABLE_DISABLE_ZONING        0x81
-#define SMP_FN_WRITE_GPIO_REG               0x82
-#define SMP_FN_WRITE_GPIO_REG_ENH           0x83
-#define SMP_FN_ZONED_BROADCAST              0x85
-#define SMP_FN_ZONE_LOCK                    0x86
-#define SMP_FN_ZONE_ACTIVATE                0x87
-#define SMP_FN_ZONE_UNLOCK                  0x88
-#define SMP_FN_CONFIG_ZONE_MANAGER_PASS     0x89
-#define SMP_FN_CONFIG_ZONE_PHY_INFO         0x8a
-#define SMP_FN_CONFIG_ZONE_PERMISSION_TBL   0x8b
-#define SMP_FN_CONFIG_ROUTE_INFO            0x90
-#define SMP_FN_PHY_CONTROL                  0x91
-#define SMP_FN_PHY_TEST_FUNCTION            0x92
-#define SMP_FN_CONFIG_PHY_EVENT             0x93
-
-/* SMP function result values */
-#define SMP_FRES_FUNCTION_ACCEPTED          0x0
-#define SMP_FRES_UNKNOWN_FUNCTION           0x1
-#define SMP_FRES_FUNCTION_FAILED            0x2
-#define SMP_FRES_INVALID_REQUEST_LEN        0x3
-#define SMP_FRES_INVALID_EXP_CHANGE_COUNT   0x4
-#define SMP_FRES_BUSY                       0x5
-#define SMP_FRES_INCOMPLETE_DESCRIPTOR_LIST 0x6
-#define SMP_FRES_NO_PHY                     0x10
-#define SMP_FRES_NO_INDEX                   0x11
-#define SMP_FRES_NO_SATA_SUPPORT            0x12
-#define SMP_FRES_UNKNOWN_PHY_OP             0x13
-#define SMP_FRES_UNKNOWN_PHY_TEST_FN        0x14
-#define SMP_FRES_PHY_TEST_IN_PROGRESS       0x15
-#define SMP_FRES_PHY_VACANT                 0x16
-#define SMP_FRES_UNKNOWN_PHY_EVENT_SRC      0x17
-#define SMP_FRES_UNKNOWN_DESCRIPTOR_TYPE    0x18
-#define SMP_FRES_UNKNOWN_PHY_FILTER         0x19
-#define SMP_FRES_AFFILIATION_VIOLATION      0x1a
-#define SMP_FRES_SMP_ZONE_VIOLATION         0x20
-#define SMP_FRES_NO_MANAGEMENT_ACCESS       0x21
-#define SMP_FRES_UNKNOWN_EN_DIS_ZONING_VAL  0x22
-#define SMP_FRES_ZONE_LOCK_VIOLATION        0x23
-#define SMP_FRES_NOT_ACTIVATED              0x24
-#define SMP_FRES_ZONE_GROUP_OUT_OF_RANGE    0x25
-#define SMP_FRES_NO_PHYSICAL_PRESENCE       0x26
-#define SMP_FRES_SAVING_NOT_SUPPORTED       0x27
-#define SMP_FRES_SOURCE_ZONE_GROUP          0x28
-#define SMP_FRES_DIS_PASSWORD_NOT_SUPPORTED 0x29
-#define SMP_FRES_INVALID_FIELD_IN_REQUEST   0x2a
-
-/* Utilities can use these process status values for syntax errors and
-   file (device node) problems (e.g. not found or permissions). Numbers
-   between 1 and 32 are reserved for SMP function result values */
-#define SMP_LIB_SYNTAX_ERROR                91
-#define SMP_LIB_FILE_ERROR                  92
-#define SMP_LIB_RESOURCE_ERROR              93
-#define SMP_LIB_CAT_MALFORMED               97
-
-#define SMP_FN_DISCOVER_RESP_LEN            124
-#define SMP_FN_REPORT_GENERAL_RESP_LEN      76
+#include "widget.h"
+#include "smp_discover.h"
 
 static const char * dev_bsg = "/dev/bsg";
 
@@ -1006,7 +922,7 @@ bsgdev_scan_select(const struct dirent * s)
 }
 
 void
-smpDiscover(Widget* pw, int vb)
+smpDiscover(int vb)
 {
     int num, k, res;
     struct dirent ** namelist;
@@ -1019,24 +935,136 @@ smpDiscover(Widget* pw, int vb)
     num = scandir(dev_bsg, &namelist, bsgdev_scan_select, alphasort);
     if (num <= 0) {  /* HBA mid level may not be loaded */
         perror("scandir");
-        pw->appendMessage("HBA mid level module may not be loaded.");
+        gAppendMessage("HBA mid level module may not be loaded.");
         return;
     }
 
     for (k = 0; k < num; ++k) {
         device_name = QString("%1/%2").arg(dev_bsg, namelist[k]->d_name);
-        pw->appendMessage(device_name);
+        gAppendMessage(device_name);
         if (vb) {
             qDebug() << "----> exploring " << device_name;
         }
 
         res = smp_initiator_open(device_name, &tobj);
         if (res < 0) {
-            pw->appendMessage(QString("failed to open ") + device_name);
+            gAppendMessage(QString("failed to open ") + device_name);
             continue;
         }
 
         res = do_multiple(&tobj, vb);
+        if (res) {
+            qDebug("Exit status %d indicates error detected", res);
+        }
+
+        smp_initiator_close(&tobj);
+    }
+
+    for (k = 0; k < num; ++k) {
+        free(namelist[k]);
+    }
+    free(namelist);
+}
+
+static int
+do_multiple_slot(struct smp_target_obj * top, int vb)
+{
+    int ret = 0;
+    int len, k, num, dsn;
+    uint64_t ull, expander_sa = 0, hba_sa = 0;
+    uint8_t * rp = NULL;
+    uint8_t * free_rp = NULL;
+
+    len = SMP_FN_DISCOVER_RESP_LEN;
+    rp = smp_memalign(len, 0, &free_rp, false);
+    if (NULL == rp) {
+        qDebug("%s: heap allocation problem", __func__);
+        return SMP_LIB_RESOURCE_ERROR;
+    }
+
+    for (k = 0; k < 32; ++k) {
+        len = do_discover(top, k, rp, SMP_FN_DISCOVER_RESP_LEN, false);
+        if (len < 0)
+            ret = (len < -2) ? (-4 - len) : len;
+        else
+            ret = 0;
+
+        if (SMP_FRES_NO_PHY == ret) {
+            ret = 0;   /* expected, end condition */
+            goto finish;
+        } else if (SMP_FRES_PHY_VACANT == ret) {
+            printf("  phy %3d: inaccessible (phy vacant)\n", k);
+            continue;
+        } else if (ret)
+            goto finish;
+
+        /* SAS Address (bytes 16-23) */
+        ull = sg_get_unaligned_be64(rp + 16);
+        if (0 == expander_sa)
+            expander_sa = ull;
+        else {
+            if (ull != expander_sa) {
+                if (ull > 0) {
+                    qDebug(">> expander's SAS address is changing?? phy_id=%d, was=%lx, now=%lx", rp[9], expander_sa, ull);
+                    expander_sa = ull;
+                } else if (vb)
+                    qDebug(">> expander's SAS address shown as 0 at phy_id=%d", rp[9]);
+            }
+        }
+
+        /* 0 : 0 : 0 : 0 :
+           ATTACHED SSP INITIATOR : ATTACHED STP INITIATOR : ATTACHED SMP INITIATOR : ATTACHED SATA HOST */
+        if (rp[14] & 0xf) {
+            /* ATTACHED DEVICE NAME (bytes 52-59) */
+            uint64_t sa = sg_get_unaligned_be64(rp + 52);
+            if (0 != sa && 0 == hba_sa) {
+                hba_sa = sa;
+                gControllers.setDiscoverResp(ull, sa, rp, len);
+            }
+        } else {
+            /* Device Slot Number */
+            dsn = ((len > 108) && (0xff != rp[108])) ? rp[108] : -1;
+            gDevices.setDiscoverResp(dsn, rp, len);
+        }
+    }
+
+finish:
+    if (free_rp)
+        free(free_rp);
+    return ret;
+}
+
+void
+slot_discover(int verbose)
+{
+    int num, k, res;
+    struct dirent ** namelist;
+    struct smp_target_obj tobj;
+    QString device_name;
+
+    if (verbose)
+        qDebug("discovering...");
+
+    num = scandir(dev_bsg, &namelist, bsgdev_scan_select, alphasort);
+    if (num <= 0) {  /* HBA mid level may not be loaded */
+        perror("scandir");
+        gAppendMessage("HBA mid level module may not be loaded.");
+        return;
+    }
+
+    for (k = 0; k < num; ++k) {
+        device_name = QString("%1/%2").arg(dev_bsg, namelist[k]->d_name);
+        if (verbose) {
+            qDebug() << "----> exploring " << device_name;
+        }
+
+        res = smp_initiator_open(device_name, &tobj);
+        if (res < 0) {
+            gAppendMessage(QString("failed to open ") + device_name);
+            continue;
+        }
+
+        res = do_multiple_slot(&tobj, verbose);
         if (res) {
             qDebug("Exit status %d indicates error detected", res);
         }
