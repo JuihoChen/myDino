@@ -5,26 +5,29 @@
 #include <QCheckBox>
 #include <QGroupBox>
 
+#include "smp_discover.h"
+
 QT_BEGIN_NAMESPACE
 namespace Ui { class Widget; }
 QT_END_NAMESPACE
 
-typedef struct ST_SLOTINFO _ST_SLOTINFO;
-typedef struct ST_GBOXINFO _ST_GBOXINFO;
+#define NSLOT   112
+#define NEXPDR  4
 
-class DeviceFunc;
-class ExpanderFunc;
-
-extern DeviceFunc gDevices;
-extern ExpanderFunc gControllers;
+typedef struct ST_SLOTINFO {
+    QCheckBox *cb_slot;
+    QString d_name;
+    QString wwid;
+    QString block;
+    uchar discover_resp[SMP_FN_DISCOVER_RESP_LEN];
+    int resp_len;
+} _ST_SLOTINFO;
 
 class DeviceFunc
 {
 public:
-    DeviceFunc(_ST_SLOTINFO * gs) : pSlotInfo(gs)
-    {}
-    ~DeviceFunc()
-    {}
+    DeviceFunc() {}
+    ~DeviceFunc() {};
 
     void clear();
     void setSlot(QString path, QString device, QString expander, int iexp);
@@ -33,28 +36,38 @@ public:
     void setSlotLabel(int sl);
     int count() { return myCount; }
 
+    QCheckBox *& cbSlot(int sl) { return SlotInfo[sl].cb_slot; }
+
 private:
     void setSlot(QString path, QString device, int sl);
 
-    _ST_SLOTINFO * const pSlotInfo;
+    _ST_SLOTINFO SlotInfo[NSLOT];
     int myCount;
 };
+
+typedef struct ST_GBOXINFO {
+    QGroupBox *gbox;
+    QString d_name;
+    QString wwid;
+    uchar discover_resp[SMP_FN_DISCOVER_RESP_LEN];
+    int resp_len;
+} _ST_GBOXINFO;
 
 class ExpanderFunc
 {
 public:
-    ExpanderFunc(_ST_GBOXINFO * ge) : pGboxInfo(ge)
-    {}
-    ~ExpanderFunc()
-    {}
+    ExpanderFunc() {}
+    ~ExpanderFunc() {}
 
     void clear();
     void setController(QString path, QString expander, int iexp);
     void setDiscoverResp(uint64_t ull, uint64_t sa, uchar * src, int len);
     int count() { return myCount; }
 
+    QGroupBox *& gbThe(int gr) { return GboxInfo[gr].gbox; }
+
 private:
-    _ST_GBOXINFO * const pGboxInfo;
+    _ST_GBOXINFO GboxInfo[NEXPDR];
     int myCount;
 };
 
@@ -79,6 +92,9 @@ private:
 
     Ui::Widget *ui;
 };
+
+extern DeviceFunc gDevices;
+extern ExpanderFunc gControllers;
 
 void gAppendMessage(QString message);
 

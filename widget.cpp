@@ -6,48 +6,25 @@
 #include "lsscsi.h"
 #include "smp_discover.h"
 
-#define NSLOT   112
-#define NEXPDR  4
-
 extern int verbose;
-
-struct ST_SLOTINFO {
-    QCheckBox *cb_slot;
-    QString d_name;
-    QString wwid;
-    QString block;
-    uchar discover_resp[SMP_FN_DISCOVER_RESP_LEN];
-    int resp_len;
-};
-
-struct ST_GBOXINFO {
-    QGroupBox *gbox;
-    QString d_name;
-    QString wwid;
-    uchar discover_resp[SMP_FN_DISCOVER_RESP_LEN];
-    int resp_len;
-};
 
 static QComboBox *gCombo = nullptr;
 static QTextBrowser *gText = nullptr;
 
-_ST_SLOTINFO gSlot[NSLOT];
-_ST_GBOXINFO gExpander[NEXPDR];
-
-DeviceFunc gDevices(gSlot);
-ExpanderFunc gControllers(gExpander);
+DeviceFunc gDevices;
+ExpanderFunc gControllers;
 
 void DeviceFunc::clear()
 {
     for (int i = 0; i < NSLOT; i++) {
-        pSlotInfo[i].cb_slot->setText(QString("Slot %1").arg(i+1));
-        pSlotInfo[i].cb_slot->setStyleSheet("QCheckBox:enabled{color: black;} QCheckBox:disabled{color: grey;}");
-        pSlotInfo[i].cb_slot->setDisabled(true);
-        pSlotInfo[i].cb_slot->setCheckState(Qt::CheckState::Unchecked);
-        pSlotInfo[i].d_name.clear();
-        pSlotInfo[i].wwid.clear();
-        pSlotInfo[i].block.clear();
-        pSlotInfo[i].resp_len = 0;
+        SlotInfo[i].cb_slot->setText(QString("Slot %1").arg(i+1));
+        SlotInfo[i].cb_slot->setStyleSheet("QCheckBox:enabled{color: black;} QCheckBox:disabled{color: grey;}");
+        SlotInfo[i].cb_slot->setDisabled(true);
+        SlotInfo[i].cb_slot->setCheckState(Qt::CheckState::Unchecked);
+        SlotInfo[i].d_name.clear();
+        SlotInfo[i].wwid.clear();
+        SlotInfo[i].block.clear();
+        SlotInfo[i].resp_len = 0;
     }
     myCount = 0;
 }
@@ -55,19 +32,19 @@ void DeviceFunc::clear()
 void DeviceFunc::setSlot(QString path, QString device, int sl)
 {
     if ((unsigned)sl < NSLOT) {
-        pSlotInfo[sl].d_name = device;
+        SlotInfo[sl].d_name = device;
 
         // Get wwid of this device
         QString wd = path.append("/%1").arg(device);
-        if (false == get_myValue(wd, "wwid", pSlotInfo[sl].wwid)) {
-            pSlotInfo[sl].wwid.clear();
+        if (false == get_myValue(wd, "wwid", SlotInfo[sl].wwid)) {
+            SlotInfo[sl].wwid.clear();
         }
 
         // Get block name of this device
         wd += "/block";
-        pSlotInfo[sl].block = get_blockname(wd);
+        SlotInfo[sl].block = get_blockname(wd);
 
-        pSlotInfo[sl].cb_slot->setEnabled(true);
+        SlotInfo[sl].cb_slot->setEnabled(true);
         setSlotLabel(sl);
         myCount++;
     }
@@ -96,19 +73,19 @@ void DeviceFunc::setDiscoverResp(int dsn, uchar * src, int len)
     if (0 != dsn && (unsigned)dsn <= NSLOT) {
         int sl = dsn - 1;
         // src area is bigger than discover_resp and zero set before discovery
-        memcpy(pSlotInfo[sl].discover_resp, src, SMP_FN_DISCOVER_RESP_LEN);
-        pSlotInfo[sl].resp_len = len;
-        pSlotInfo[sl].cb_slot->setEnabled(true);
+        memcpy(SlotInfo[sl].discover_resp, src, SMP_FN_DISCOVER_RESP_LEN);
+        SlotInfo[sl].resp_len = len;
+        SlotInfo[sl].cb_slot->setEnabled(true);
         if (len > 0) {
             int negot = src[13] & 0xf;
             if (negot == 1) {
-                QString title = pSlotInfo[sl].cb_slot->text();
-                pSlotInfo[sl].cb_slot->setText(title.append(" (phy off)"));
+                QString title = SlotInfo[sl].cb_slot->text();
+                SlotInfo[sl].cb_slot->setText(title.append(" (phy off)"));
             }
             /* attached SAS device type: 0-> none, 1-> (SAS or SATA end) device,
              * 2-> expander, 3-> fanout expander (obsolete), rest-> reserved */
             int adt = ((0x70 & src[12]) >> 4);
-            if (0 == adt && !pSlotInfo[sl].d_name.isEmpty())
+            if (0 == adt && !SlotInfo[sl].d_name.isEmpty())
                 gAppendMessage(QString::asprintf("[%s] slot %d setting error!", __func__, dsn));
         }
     } else {
@@ -118,17 +95,17 @@ void DeviceFunc::setDiscoverResp(int dsn, uchar * src, int len)
 
 void DeviceFunc::setSlotLabel(int sl)
 {
-    if (gCombo && !pSlotInfo[sl].d_name.isEmpty())
+    if (gCombo && !SlotInfo[sl].d_name.isEmpty())
     switch (gCombo->currentIndex())
     {
     case 0:
-        pSlotInfo[sl].cb_slot->setText(pSlotInfo[sl].wwid.right(16));
+        SlotInfo[sl].cb_slot->setText(SlotInfo[sl].wwid.right(16));
         break;
     case 1:
-        pSlotInfo[sl].cb_slot->setText(QString("%1. ").arg(sl+1) + pSlotInfo[sl].block);
+        SlotInfo[sl].cb_slot->setText(QString("%1. ").arg(sl+1) + SlotInfo[sl].block);
         break;
     default:
-        pSlotInfo[sl].cb_slot->setText(QString("%1. ").arg(sl+1) + pSlotInfo[sl].d_name);
+        SlotInfo[sl].cb_slot->setText(QString("%1. ").arg(sl+1) + SlotInfo[sl].d_name);
         break;
     }
 }
@@ -136,10 +113,10 @@ void DeviceFunc::setSlotLabel(int sl)
 void ExpanderFunc::clear()
 {
     for (int i = 0; i < NEXPDR; i++) {
-        pGboxInfo[i].gbox->setTitle(QString("Expander-%1").arg(i+1));
-        pGboxInfo[i].d_name.clear();
-        pGboxInfo[i].wwid.clear();
-        pGboxInfo[i].resp_len = 0;
+        GboxInfo[i].gbox->setTitle(QString("Expander-%1").arg(i+1));
+        GboxInfo[i].d_name.clear();
+        GboxInfo[i].wwid.clear();
+        GboxInfo[i].resp_len = 0;
     }
     myCount = 0;
 }
@@ -152,17 +129,17 @@ void ExpanderFunc::setController(QString path, QString expander, int iexp)
         return;
     }
 
-    pGboxInfo[iexp].d_name = expander;
+    GboxInfo[iexp].d_name = expander;
 
     // Get wwid of this enclosure
     QString wd = path.append("/%1/enclosure/%1").arg(expander);
-    if (false == get_myValue(wd, "id", pGboxInfo[iexp].wwid)) {
-        pGboxInfo[iexp].wwid.clear();
+    if (false == get_myValue(wd, "id", GboxInfo[iexp].wwid)) {
+        GboxInfo[iexp].wwid.clear();
     }
 
-    QString title = pGboxInfo[iexp].gbox->title();
-    pGboxInfo[iexp].gbox->setTitle(
-        title + QString(" [%1]").arg(pGboxInfo[iexp].wwid.right(16).toUpper()));
+    QString title = GboxInfo[iexp].gbox->title();
+    GboxInfo[iexp].gbox->setTitle(
+        title + QString(" [%1]").arg(GboxInfo[iexp].wwid.right(16).toUpper()));
 
     myCount++;
 }
@@ -171,8 +148,8 @@ void ExpanderFunc::setDiscoverResp(uint64_t ull, uint64_t sa, uchar * src, int l
 {
     int el = (ull & 0xFF) >> 6;
     // src area is bigger than discover_resp and zero set before discovery
-    memcpy(pGboxInfo[el].discover_resp, src, SMP_FN_DISCOVER_RESP_LEN);
-    pGboxInfo[el].resp_len = len;
+    memcpy(GboxInfo[el].discover_resp, src, SMP_FN_DISCOVER_RESP_LEN);
+    GboxInfo[el].resp_len = len;
     if (len > 0) {
         int negot = src[13] & 0xf;
         const char* cp = "";
@@ -193,8 +170,8 @@ void ExpanderFunc::setDiscoverResp(uint64_t ull, uint64_t sa, uchar * src, int l
                 cp = "22.5";
                 break;
         }
-        QString title = pGboxInfo[el].gbox->title();
-        pGboxInfo[el].gbox->setTitle(
+        QString title = GboxInfo[el].gbox->title();
+        GboxInfo[el].gbox->setTitle(
             title.append(QString::asprintf(" [HBA:%lX/%s Gbps]", sa, cp)));
     }
 }
@@ -239,14 +216,14 @@ Widget::Widget(QWidget *parent)
         ui->checkBox_106, ui->checkBox_107, ui->checkBox_108, ui->checkBox_109, ui->checkBox_110, ui->checkBox_111, ui->checkBox_112
     };
     for (int i = 0; i < NSLOT; i++) {
-        gSlot[i].cb_slot = _slot[i];
+        gDevices.cbSlot(i) = _slot[i];
     }
 
     // Setup Groubox 0-3 to be globally accessed
-    gExpander[0].gbox = ui->groupBox_0;
-    gExpander[1].gbox = ui->groupBox_1;
-    gExpander[2].gbox = ui->groupBox_2;
-    gExpander[3].gbox = ui->groupBox_3;
+    gControllers.gbThe(0) = ui->groupBox_0;
+    gControllers.gbThe(1) = ui->groupBox_1;
+    gControllers.gbThe(2) = ui->groupBox_2;
+    gControllers.gbThe(3) = ui->groupBox_3;
 
     connect(ui->cbxSlot, &QComboBox::currentIndexChanged, this, &Widget::cbxSlotIndexChanged);
     connect(ui->btnRefresh, &QPushButton::clicked, this, &Widget::btnRefreshClicked);
