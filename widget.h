@@ -30,8 +30,8 @@ public:
     ~DeviceFunc() {};
 
     void clear();
-    void setSlot(QString path, QString device, QString expander, int iexp);
-    void setSlot(QString path, QString device, QString enclosure_device_name);
+    void setSlot(QString dir_name, QString device, QString expander, uint64_t wwid);
+    void setSlot(QString dir_name, QString device, QString enclosure_device_name);
     void setDiscoverResp(int dsn, uchar * src, int len);
     void setSlotLabel(int sl);
     int count() { return myCount; }
@@ -39,7 +39,7 @@ public:
     QCheckBox *& cbSlot(int sl) { return SlotInfo[sl].cb_slot; }
 
 private:
-    void setSlot(QString path, QString device, int sl);
+    void setSlot(QString dir_name, QString device, int sl);
 
     _ST_SLOTINFO SlotInfo[NSLOT];
     int myCount;
@@ -49,6 +49,7 @@ typedef struct ST_GBOXINFO {
     QGroupBox *gbox;
     QString d_name;
     QString wwid;
+    QString w_path;
     uchar discover_resp[SMP_FN_DISCOVER_RESP_LEN];
     int resp_len;
 } _ST_GBOXINFO;
@@ -60,8 +61,8 @@ public:
     ~ExpanderFunc() {}
 
     void clear();
-    void setController(QString path, QString expander, int iexp);
-    void setDiscoverResp(uint64_t ull, uint64_t sa, uchar * src, int len);
+    void setController(QString expander, uint64_t wwid);
+    void setDiscoverResp(QString path, uint64_t ull, uint64_t sa, uchar * src, int len);
     int count() { return myCount; }
 
     QGroupBox *& gbThe(int gr) { return GboxInfo[gr].gbox; }

@@ -51,7 +51,7 @@
      <property name="geometry">
       <rect>
        <x>120</x>
-       <y>10</y>
+       <y>70</y>
        <width>112</width>
        <height>23</height>
       </rect>
@@ -60,10 +60,26 @@
       <string>Discover</string>
      </property>
      <property name="checked">
+      <bool>false</bool>
+     </property>
+    </widget>
+    <widget class="QRadioButton" name="radPhyDisable">
+     <property name="geometry">
+      <rect>
+       <x>120</x>
+       <y>10</y>
+       <width>112</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Phy Off</string>
+     </property>
+     <property name="checked">
       <bool>true</bool>
      </property>
     </widget>
-    <widget class="QRadioButton" name="radioButton_2">
+    <widget class="QRadioButton" name="radPhyReset">
      <property name="geometry">
       <rect>
        <x>120</x>
@@ -73,20 +89,7 @@
       </rect>
      </property>
      <property name="text">
-      <string>RadioButton</string>
-     </property>
-    </widget>
-    <widget class="QRadioButton" name="radioButton_3">
-     <property name="geometry">
-      <rect>
-       <x>120</x>
-       <y>70</y>
-       <width>112</width>
-       <height>23</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>RadioButton</string>
+      <string>Phy On</string>
      </property>
     </widget>
     <widget class="QPushButton" name="btnSmpDoit">
@@ -1703,7 +1706,8 @@ li.checked::marker { content: &quot;\2612&quot;; }
      <string notr="true">WWID</string>
     </property>
     <property name="icon">
-     <iconset theme="drive-harddisk"/>
+     <iconset theme="drive-harddisk">
+      <normaloff>.</normaloff>.</iconset>
     </property>
    </item>
    <item>
@@ -1711,7 +1715,8 @@ li.checked::marker { content: &quot;\2612&quot;; }
      <string>SDx</string>
     </property>
     <property name="icon">
-     <iconset theme="drive-removable-media"/>
+     <iconset theme="drive-removable-media">
+      <normaloff>.</normaloff>.</iconset>
     </property>
    </item>
    <item>
@@ -1767,7 +1772,8 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <string>  Clear</string>
    </property>
    <property name="icon">
-    <iconset theme="document-new"/>
+    <iconset theme="document-new">
+     <normaloff>.</normaloff>.</iconset>
    </property>
   </widget>
  </widget>

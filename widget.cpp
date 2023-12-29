@@ -6,6 +6,8 @@
 #include "lsscsi.h"
 #include "smp_discover.h"
 
+#define WWID_TO_INDEX(wwid) ((wwid & 0xFF) >> 6)
+
 extern int verbose;
 
 static QComboBox *gCombo = nullptr;
@@ -29,13 +31,13 @@ void DeviceFunc::clear()
     myCount = 0;
 }
 
-void DeviceFunc::setSlot(QString path, QString device, int sl)
+void DeviceFunc::setSlot(QString dir_name, QString device, int sl)
 {
     if ((unsigned)sl < NSLOT) {
         SlotInfo[sl].d_name = device;
 
         // Get wwid of this device
-        QString wd = path.append("/%1").arg(device);
+        QString wd = dir_name.append("/%1").arg(device);
         if (false == get_myValue(wd, "wwid", SlotInfo[sl].wwid)) {
             SlotInfo[sl].wwid.clear();
         }
@@ -50,22 +52,22 @@ void DeviceFunc::setSlot(QString path, QString device, int sl)
     }
 }
 
-void DeviceFunc::setSlot(QString path, QString device, QString expander, int iexp)
+void DeviceFunc::setSlot(QString dir_name, QString device, QString expander, uint64_t wwid)
 {
     int sl = compute_device_index(device.toStdString().c_str(), expander.toStdString().c_str());
 
     // the device should be within this expander's domain
-    if (sl <= 0 || sl > 28 || iexp < 0 || iexp > 3) {
+    if (sl <= 0 || sl > 28) {
         qDebug() << "Device [" << device << "] setting error!";
         return;
     }
-    sl = (iexp + 1) * 28 - sl;
-    setSlot(path, device, sl);
+    sl = (WWID_TO_INDEX(wwid) + 1) * 28 - sl;
+    setSlot(dir_name, device, sl);
 }
 
-void DeviceFunc::setSlot(QString path, QString device, QString enclosure_device_name)
+void DeviceFunc::setSlot(QString dir_name, QString device, QString enclosure_device_name)
 {
-    setSlot(path, device, enclosure_device_name.right(2).toShort(0, 16) - 1);
+    setSlot(dir_name, device, enclosure_device_name.right(2).toShort(0, 16) - 1);
 }
 
 void DeviceFunc::setDiscoverResp(int dsn, uchar * src, int len)
@@ -116,37 +118,32 @@ void ExpanderFunc::clear()
         GboxInfo[i].gbox->setTitle(QString("Expander-%1").arg(i+1));
         GboxInfo[i].d_name.clear();
         GboxInfo[i].wwid.clear();
+        GboxInfo[i].w_path.clear();
         GboxInfo[i].resp_len = 0;
     }
     myCount = 0;
 }
 
-void ExpanderFunc::setController(QString path, QString expander, int iexp)
+void ExpanderFunc::setController(QString expander, uint64_t wwid)
 {
     // Only expanders 0-3 should be taken care of...
-    if ((unsigned)iexp > 3) {
-        qDebug() << "Expander [" << expander << "] setting error!";
-        return;
-    }
+    int ie = WWID_TO_INDEX(wwid);
 
-    GboxInfo[iexp].d_name = expander;
+    GboxInfo[ie].d_name = expander;
+    GboxInfo[ie].wwid = QString::asprintf("%lX", wwid);
 
-    // Get wwid of this enclosure
-    QString wd = path.append("/%1/enclosure/%1").arg(expander);
-    if (false == get_myValue(wd, "id", GboxInfo[iexp].wwid)) {
-        GboxInfo[iexp].wwid.clear();
-    }
-
-    QString title = GboxInfo[iexp].gbox->title();
-    GboxInfo[iexp].gbox->setTitle(
-        title + QString(" [%1]").arg(GboxInfo[iexp].wwid.right(16).toUpper()));
+    QString title = GboxInfo[ie].gbox->title();
+    GboxInfo[ie].gbox->setTitle(title + QString(" [%1]").arg(GboxInfo[ie].wwid));
 
     myCount++;
 }
 
-void ExpanderFunc::setDiscoverResp(uint64_t ull, uint64_t sa, uchar * src, int len)
+void ExpanderFunc::setDiscoverResp(QString path, uint64_t ull, uint64_t sa, uchar * src, int len)
 {
-    int el = (ull & 0xFF) >> 6;
+    int el = WWID_TO_INDEX(ull);
+    // save the working path for later use cases
+    GboxInfo[el].w_path = path;
+
     // src area is bigger than discover_resp and zero set before discovery
     memcpy(GboxInfo[el].discover_resp, src, SMP_FN_DISCOVER_RESP_LEN);
     GboxInfo[el].resp_len = len;
@@ -281,9 +278,15 @@ void Widget::refreshSlots()
 
 void Widget::btnSmpDoitClicked()
 {
+    if (ui->radPhyDisable->isChecked()) {
+        appendMessage("Disable phys...");
+        //smpDiscover(verbose);
+        return;
+    }
     if (ui->radDiscover->isChecked()) {
         appendMessage("Discover expanders...");
         smpDiscover(verbose);
+        return;
     }
 }
 

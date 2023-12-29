@@ -282,10 +282,10 @@ enclosure_dir_scan_select(const struct dirent * s)
 }
 
 /* Return true for directory entry that is link or directory (other than a
- * directory name starting with dot) that contains "enclosure_device".
+ * directory name starting with dot) that contains "enclosure", not "enclosure_device".
  * Else return false.  */
 static bool
-enclosure_scan(const char * dir_name)
+enclosure_dir_scan(const char * dir_name)
 {
     int num, k;
     struct dirent ** namelist;
@@ -351,23 +351,23 @@ get_value(QString dir_name, QString base_name, char * value, int max_value_len)
     return true;
 }
 
-static int
-index_expander(QString dir_name, QString devname, int vb)
+static uint64_t
+expander_wwid(QString dir_name, QString dev_name, int vb)
 {
     int vlen;
     char value[LMAX_NAME];
-    QString wd = QString("%1/%2/enclosure/%2").arg(dir_name, devname);
+    QString wd = QString("%1/%2/enclosure/%2").arg(dir_name, dev_name);
 
     vlen = sizeof(value);
     if (get_value(wd, "id", value, vlen)) {
         if (vb) {
             qDebug("Found an enclosure wwid: %s", value);
         }
-        int len = strlen(value) - 2;
-        unsigned i = QString(value + len).toInt(0, 16) >> 6;  // the last 2 bytes: "3F", "7F", "BF" or "FF"
-        return i <= 3 ? i : -1;
+        int len = strlen(value);
+        if (len >= 16) len -= 16;   // wwid is 16-digit long
+        return QString(value + len).toULong(0, 16);
     }
-    return -1;
+    return 0;
 }
 
 bool
@@ -420,7 +420,7 @@ list_sdevices(int vb)
 {
     int num, k, prev;
     struct dirent ** namelist;
-    QString buff, name, path;
+    QString buff, name;
 
     if (vb)
         qDebug("listing...");
@@ -429,27 +429,27 @@ list_sdevices(int vb)
 
     num = scandir(buff.toStdString().c_str(), &namelist, sdev_dir_scan_select, sdev_scandir_sort);
     if (num < 0) {  /* scsi mid level may not be loaded */
-        path = QString("%1: scandir: %2").arg(__func__, buff);
-        perror(path.toStdString().c_str());
+        name = QString("%1: scandir: %2").arg(__func__, buff);
+        perror(name.toStdString().c_str());
         gAppendMessage("SCSI mid level module may not be loaded.");
         return;
     }
 
     for (prev = k = 0; k < num; ++k) {
         name = namelist[k]->d_name;
-        path = QString("%1/%2").arg(buff, name);
-        if (enclosure_scan(path.toStdString().c_str())) {
-            int e = index_expander(buff, name, vb);
-            if (e < 0) {
+        QString dir_name = QString("%1/%2").arg(buff, name);
+        if (enclosure_dir_scan(dir_name.toStdString().c_str())) {
+            uint64_t wwid = expander_wwid(buff, name, vb);
+            if (0 == wwid) {
                 gAppendMessage(QString("error: cannot get expander[%1] wwid!").arg(name));
             } else {
                 if (false == hba9500) {
                     for (; prev < k; ++prev) {
-                        gDevices.setSlot(buff, namelist[prev]->d_name, namelist[k]->d_name, e);
+                        gDevices.setSlot(buff, namelist[prev]->d_name, namelist[k]->d_name, wwid);
                     }
                     prev = k + 1;
                 }
-                gControllers.setController(buff, namelist[k]->d_name, e);
+                gControllers.setController(namelist[k]->d_name, wwid);
             }
         } else if (true == hba9500) {
             gDevices.setSlot(buff, name, enclosure_device.name);

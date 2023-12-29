@@ -1019,7 +1019,7 @@ do_multiple_slot(struct smp_target_obj * top, int vb)
             uint64_t sa = sg_get_unaligned_be64(rp + 52);
             if (0 != sa && 0 == hba_sa) {
                 hba_sa = sa;
-                gControllers.setDiscoverResp(ull, sa, rp, len);
+                gControllers.setDiscoverResp(top->device_name, ull, sa, rp, len);
             }
         } else {
             /* Device Slot Number */
