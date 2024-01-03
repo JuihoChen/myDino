@@ -1,5 +1,6 @@
 #include <QVBoxLayout>
 #include <QSystemTrayIcon>
+#include <QTimer>
 
 #include "ui_widget.h"
 #include "widget.h"
@@ -118,7 +119,7 @@ void ExpanderFunc::clear()
         GboxInfo[i].gbox->setTitle(QString("Expander-%1").arg(i+1));
         GboxInfo[i].d_name.clear();
         GboxInfo[i].wwid.clear();
-        GboxInfo[i].w_path.clear();
+        GboxInfo[i].bsg_path.clear();
         GboxInfo[i].resp_len = 0;
     }
     myCount = 0;
@@ -142,7 +143,7 @@ void ExpanderFunc::setDiscoverResp(QString path, uint64_t ull, uint64_t sa, ucha
 {
     int el = WWID_TO_INDEX(ull);
     // save the working path for later use cases
-    GboxInfo[el].w_path = path;
+    GboxInfo[el].bsg_path = path;
 
     // src area is bigger than discover_resp and zero set before discovery
     memcpy(GboxInfo[el].discover_resp, src, SMP_FN_DISCOVER_RESP_LEN);
@@ -254,16 +255,52 @@ void Widget::appendMessage(QString message)
     ui->textBrowser->append(message);
 }
 
-void Widget::btnRefreshClicked()
-{
-    refreshSlots();
-}
-
 void Widget::cbxSlotIndexChanged(int index)
 {
     for (int i=0; i<NSLOT; i++) {
         gDevices.setSlotLabel(i);
     }
+}
+
+void Widget::btnRefreshClicked()
+{
+    refreshSlots();
+}
+
+void Widget::btnClearTBClicked()
+{
+    ui->textBrowser->clear();  // Clear the default ui text
+}
+
+void Widget::btnSmpDoitClicked()
+{
+    int delay = 0;
+    if (ui->radPhyDisable->isChecked()) {
+        appendMessage("Disable phys...");
+        if (phySetDisabled(true))
+            delay = 4000;
+    }
+    else if (ui->radPhyReset->isChecked()) {
+        appendMessage("Enable phys...");
+        if (phySetDisabled(false))
+            delay = 2500;
+    }
+    else if (ui->radDiscover->isChecked()) {
+        appendMessage("Discover expanders...");
+        smpDiscover(verbose);
+        return;
+    }
+#if 1
+    Q_UNUSED(delay);
+#else
+    // Run a function with a delay in QT
+    if (delay) {
+        QEventLoop loop;
+        QTimer::singleShot(delay, &loop, &QEventLoop::quit);
+        loop.exec();
+        refreshSlots();
+    }
+#endif
 }
 
 void Widget::refreshSlots()
@@ -276,23 +313,50 @@ void Widget::refreshSlots()
     appendMessage(QString::asprintf("Found %d expanders and %d devices", gControllers.count(), gDevices.count()));
 }
 
-void Widget::btnSmpDoitClicked()
+int Widget::phySetDisabled(bool disable)
 {
-    if (ui->radPhyDisable->isChecked()) {
-        appendMessage("Disable phys...");
-        //smpDiscover(verbose);
-        return;
-    }
-    if (ui->radDiscover->isChecked()) {
-        appendMessage("Discover expanders...");
-        smpDiscover(verbose);
-        return;
-    }
-}
+    struct smp_target_obj tobj;
+    int k, i, ret = 0;
 
-void Widget::btnClearTBClicked()
-{
-    ui->textBrowser->clear();  // Clear the default ui text
+    // loop through the expanders discovered
+    for (k = i = 0; k < 4; ++k) {
+        if (false == gControllers.bsgPath(k).isEmpty()) {
+            if (verbose) {
+                qDebug() << "----> phy controlling " << gControllers.bsgPath(k);
+            }
+            tobj.opened = 0;
+            // loop through the slots listed
+            for ( ; i < (k+1)*28; ++i) {
+                // check if the slot is selected or not?
+                if (gDevices.cbSlot(i)->isChecked()) {
+                    // the expander is to be opened for the 1st selected slot
+                    if (0 == tobj.opened) {
+                        int res = smp_initiator_open(gControllers.bsgPath(k), &tobj);
+                        if (res < 0) {
+                            gAppendMessage(QString("failed to open ") + gControllers.bsgPath(k));
+                            break;
+                        }
+                        // signal Delay after function return
+                        ret = 1;
+                    }
+                    // check if a resonable phy id (4 - 31)
+                    int phy_id = gDevices.phyId(i);
+                    if (phy_id > 3 && phy_id < 32) {
+                        // to issue PHY CONTROL request
+                        phy_control(&tobj, phy_id, disable, verbose);
+                    } else {
+                        gAppendMessage(QString::asprintf("found a phy id(%d) illegal on slot #%d", phy_id, i + 1));
+                    }
+                    gDevices.cbSlot(i)->setCheckState(Qt::CheckState::Unchecked);
+                }
+            }
+            // check if close the opened expander
+            if (tobj.opened) {
+                smp_initiator_close(&tobj);
+            }
+        }
+    }
+    return ret;
 }
 
 void gAppendMessage(QString message)

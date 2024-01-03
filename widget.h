@@ -37,6 +37,7 @@ public:
     int count() { return myCount; }
 
     QCheckBox *& cbSlot(int sl) { return SlotInfo[sl].cb_slot; }
+    int phyId(int sl) { return SlotInfo[sl].discover_resp[9]; }
 
 private:
     void setSlot(QString dir_name, QString device, int sl);
@@ -49,7 +50,7 @@ typedef struct ST_GBOXINFO {
     QGroupBox *gbox;
     QString d_name;
     QString wwid;
-    QString w_path;
+    QString bsg_path;
     uchar discover_resp[SMP_FN_DISCOVER_RESP_LEN];
     int resp_len;
 } _ST_GBOXINFO;
@@ -66,6 +67,7 @@ public:
     int count() { return myCount; }
 
     QGroupBox *& gbThe(int gr) { return GboxInfo[gr].gbox; }
+    const QString& bsgPath(int gr) { return GboxInfo[gr].bsg_path; }
 
 private:
     _ST_GBOXINFO GboxInfo[NEXPDR];
@@ -83,13 +85,14 @@ public:
     void appendMessage(QString message);
 
 private slots:
-    void btnRefreshClicked();
     void cbxSlotIndexChanged(int index);
-    void btnSmpDoitClicked();
+    void btnRefreshClicked();
     void btnClearTBClicked();
+    void btnSmpDoitClicked();
 
 private:
     void refreshSlots();
+    int phySetDisabled(bool disable);
 
     Ui::Widget *ui;
 };

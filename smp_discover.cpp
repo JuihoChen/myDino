@@ -13,17 +13,6 @@
 
 static const char * dev_bsg = "/dev/bsg";
 
-struct smp_target_obj {
-    QString device_name;
-    int subvalue;               /* adapter number (opt) */
-    unsigned char sas_addr[8];  /* target SMP (opt) */
-    uint64_t sas_addr64;        /* target SMP (opt) */
-    int interface_selector;
-    int opened;
-    int fd;
-    void * vp;                  /* opaque for pass-through (e.g. CAM) */
-};
-
 /* SAS standards include a 4 byte CRC at the end of each SMP request
    and response frames. All current pass-throughs calculate and check
    the CRC in the driver, but some pass-throughs want the space allocated.
@@ -876,10 +865,14 @@ open_lin_bsg_device(QString dev_name)
     return ret;
 }
 
-static int
+int
 smp_initiator_open(QString device_name, struct smp_target_obj * tobj)
 {
     int res;
+
+    tobj->opened = 0;
+    // It's silly to "memset" a struct with QString elements
+    //memset(tobj, 0, sizeof(struct smp_target_obj));
 
     res = open_lin_bsg_device(device_name);
     if (res < 0) {
@@ -892,7 +885,7 @@ smp_initiator_open(QString device_name, struct smp_target_obj * tobj)
     return 0;
 }
 
-static int
+int
 smp_initiator_close(struct smp_target_obj * tobj)
 {
     int res;
@@ -1076,4 +1069,47 @@ slot_discover(int verbose)
         free(namelist[k]);
     }
     free(namelist);
+}
+
+void
+phy_control(struct smp_target_obj * tobj, int phy_id, bool disable, int verbose)
+{
+    int k, res;
+    uint8_t smp_req[] = {
+        SMP_FRAME_TYPE_REQ, SMP_FN_PHY_CONTROL, 0, 9,
+        0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,
+        0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,
+    };
+    uint8_t smp_resp[8];
+    struct smp_req_resp smp_rr;
+
+    smp_req[9] = phy_id;
+    smp_req[10] = disable ? 3 : 2;  // 02h: HARD RESET, 03h: DISABLE
+
+    if (verbose) {
+        QString msg = "    Phy control request: ";
+        for (k = 0; k < (int)sizeof(smp_req); ++k) {
+            if (0 == (k % 16)) {
+                qDebug() << msg;
+                msg = "      ";
+            } else if (0 == (k % 8)) {
+                msg += " ";
+            }
+            msg += QString::asprintf("%02x ", smp_req[k]);
+        }
+        qDebug() << msg;
+    }
+
+    memset(&smp_rr, 0, sizeof(smp_rr));
+    smp_rr.request_len = sizeof(smp_req);
+    smp_rr.request = smp_req;
+    smp_rr.max_response_len = sizeof(smp_resp);
+    smp_rr.response = smp_resp;
+    res = smp_send_req(tobj, &smp_rr, verbose);
+
+    if (res) {
+        qDebug("smp_send_req failed, res=%d", res);
+        if (0 == verbose)
+            qDebug("    try adding '-v' option for more debug");
+    }
 }

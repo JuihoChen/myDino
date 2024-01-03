@@ -1,6 +1,8 @@
 #ifndef SMP_DISCOVER_H
 #define SMP_DISCOVER_H
 
+#include <QString>
+
 #define I_MPT   2
 #define I_SGV4  4
 #define I_AAC   6
@@ -87,7 +89,20 @@
 #define SMP_FN_DISCOVER_RESP_LEN            124
 #define SMP_FN_REPORT_GENERAL_RESP_LEN      76
 
+struct smp_target_obj {
+    QString device_name;
+    int subvalue;               /* adapter number (opt) */
+    //unsigned char sas_addr[8];  /* target SMP (opt) */
+    //uint64_t sas_addr64;        /* target SMP (opt) */
+    int interface_selector;
+    int opened;
+    int fd;
+};
+
+int smp_initiator_open(QString device_name, struct smp_target_obj * tobj);
+int smp_initiator_close(struct smp_target_obj * tobj);
 void smpDiscover(int verbose);
 void slot_discover(int verbose);
+void phy_control(struct smp_target_obj * tobj, int phy_id, bool disable, int verbose);
 
 #endif // SMP_DISCOVER_H
