@@ -1,12 +1,7 @@
 #include <QString>
 #include <byteswap.h>
-#include <cstdio>
 #include <dirent.h>
 #include <inttypes.h>
-#include <stdarg.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
