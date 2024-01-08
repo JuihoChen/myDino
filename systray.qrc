@@ -1,7 +1,5 @@
 <RCC>
     <qresource prefix="/">
-        <file>ubuntu.png</file>
-        <file>expander.png</file>
         <file>arrows.png</file>
         <file>refresh.png</file>
         <file>linkrate.png</file>

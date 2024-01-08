@@ -1,17 +1,39 @@
 #include <QWidget>
+
 #include <byteswap.h>
 #include <dirent.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <linux/bsg.h>
 #include <scsi/sg.h>
+#include <sys/sysmacros.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+
+#include "mpi_type.h"
+#include "mpi.h"
+#include "mpi_sas.h"
+#ifndef __user
+#define __user
+#endif
+#ifndef u8
+typedef unsigned char u8;
+#endif
+#ifndef u16
+typedef unsigned short u16;
+#endif
+#ifndef u32
+typedef unsigned int u32;
+#endif
+#include "mptctl.h"
 
 #include "widget.h"
 #include "smp_discover.h"
 
 static const char * dev_bsg = "/dev/bsg";
+static const char * dev_mpt = "/dev";
+
+static int mptcommand = (int)MPT2COMMAND;
 
 /* SAS standards include a 4 byte CRC at the end of each SMP request
    and response frames. All current pass-throughs calculate and check
@@ -423,6 +445,166 @@ send_req_lin_bsg(int fd, struct smp_req_resp * rresp, int vb)
     return 0;
 }
 
+typedef struct mpt_ioctl_command mpiIoctlBlk_t;
+
+/*****************************************************************
+ * issueMptIoctl
+ *
+ * Generic command to issue the MPT command using the special
+ * SDI_IOC | 0x01 Ioctl Function.
+ *****************************************************************/
+int
+issueMptCommand(int fd, int ioc_num, mpiIoctlBlk_t *mpiBlkPtr)
+{
+    int status = -1;
+
+    /* Set the IOC number prior to issuing this command.
+     */
+    mpiBlkPtr->hdr.iocnum = ioc_num;
+    mpiBlkPtr->hdr.port = 0;
+
+    if (ioctl(fd, mptcommand, (char *) mpiBlkPtr) != 0)
+        perror("MPTCOMMAND or MPT2COMMAND ioctl failed");
+    else {
+        status = 0;
+    }
+
+    return status;
+}
+
+/* Part of interface to upper level. */
+static int
+send_req_mpt(int fd, int64_t target_sa, struct smp_req_resp * rresp, int vb)
+{
+    mpiIoctlBlk_t * mpiBlkPtr = NULL;
+    pSmpPassthroughRequest_t smpReq;
+    pSmpPassthroughReply_t smpReply;
+    uint numBytes;
+    int  status;
+    char reply_m[1200];
+    U16  ioc_stat;
+    int ret = -1;
+
+    if (vb && (0 == target_sa)) {
+        qDebug("The MPT interface typically needs SAS address of target (e.g. expander).");
+    }
+    if (vb > 2) {
+        qDebug("SAS address=0x%lX", target_sa);
+    }
+    numBytes = offsetof(SmpPassthroughRequest_t, SGL) + (2 * sizeof(SGESimple64_t));
+    mpiBlkPtr = (mpiIoctlBlk_t *)malloc(sizeof(mpiIoctlBlk_t) + numBytes);
+    if (mpiBlkPtr == NULL)
+        goto err_out;
+    memset(mpiBlkPtr, 0, sizeof(mpiIoctlBlk_t) + numBytes);
+    mpiBlkPtr->replyFrameBufPtr = reply_m;
+    memset(mpiBlkPtr->replyFrameBufPtr, 0, sizeof(reply_m));
+    mpiBlkPtr->maxReplyBytes = sizeof(reply_m);
+    smpReq = (pSmpPassthroughRequest_t)mpiBlkPtr->MF;
+    mpiBlkPtr->dataSgeOffset = offsetof(SmpPassthroughRequest_t, SGL) / 4;
+    smpReply = (pSmpPassthroughReply_t)mpiBlkPtr->replyFrameBufPtr;
+
+    /* send smp request */
+    mpiBlkPtr->dataOutSize = rresp->request_len - 4;
+    mpiBlkPtr->dataOutBufPtr = (char *)rresp->request;
+    mpiBlkPtr->dataInSize = rresp->max_response_len + 4;
+    mpiBlkPtr->dataInBufPtr = (char *)malloc(mpiBlkPtr->dataInSize);
+    if(mpiBlkPtr->dataInBufPtr == NULL)
+        goto err_out;
+    memset(mpiBlkPtr->dataInBufPtr, 0, mpiBlkPtr->dataInSize);
+
+    /* Populate the SMP Request */
+
+    /* PassthroughFlags
+     * Bit7: 0=two SGLs 1=Payload returned in Reply
+     */
+    /* >>> memo LSI: bug fix on following line's 3rd argument (thanks to clang compiler)
+     */
+    memset(smpReq, 0, sizeof(*smpReq));
+
+    smpReq->RequestDataLength = rresp->request_len - 4; // <<<<<<<<<<<< ??
+    smpReq->Function = MPI_FUNCTION_SMP_PASSTHROUGH;
+    memcpy(&smpReq->SASAddress, &target_sa, 8);
+
+    status = issueMptCommand(fd, 0, mpiBlkPtr);
+
+    if (status != 0) {
+        qDebug("ioctl failed");
+        goto err_out;
+    }
+
+    ioc_stat = smpReply->IOCStatus & MPI_IOCSTATUS_MASK;
+    if ((ioc_stat != MPI_IOCSTATUS_SUCCESS) ||
+        (smpReply->SASStatus != MPI_SASSTATUS_SUCCESS)) {
+        if (vb) {
+            switch(smpReply->SASStatus) {
+            case MPI_SASSTATUS_UNKNOWN_ERROR:
+                qDebug("Unknown SAS (SMP) error");
+                break;
+            case MPI_SASSTATUS_INVALID_FRAME:
+                qDebug("Invalid frame");
+                break;
+            case MPI_SASSTATUS_UTC_BAD_DEST:
+                qDebug("Unable to connect (bad destination)");
+                break;
+            case MPI_SASSTATUS_UTC_BREAK_RECEIVED:
+                qDebug("Unable to connect (break received)");
+                break;
+            case MPI_SASSTATUS_UTC_CONNECT_RATE_NOT_SUPPORTED:
+                qDebug("Unable to connect (connect rate not supported)");
+                break;
+            case MPI_SASSTATUS_UTC_PORT_LAYER_REQUEST:
+                qDebug("Unable to connect (port layer request)");
+                break;
+            case MPI_SASSTATUS_UTC_PROTOCOL_NOT_SUPPORTED:
+                qDebug("Unable to connect (protocol (SMP target) not supported)");
+                break;
+            case MPI_SASSTATUS_UTC_WRONG_DESTINATION:
+                qDebug("Unable to connect (wrong destination)");
+                break;
+            case MPI_SASSTATUS_SHORT_INFORMATION_UNIT:
+                qDebug("Short information unit");
+                break;
+            case MPI_SASSTATUS_DATA_INCORRECT_DATA_LENGTH:
+                qDebug("Incorrect data length");
+                break;
+            case MPI_SASSTATUS_INITIATOR_RESPONSE_TIMEOUT:
+                qDebug("Initiator response timeout");
+                break;
+            default:
+                if (smpReply->SASStatus != MPI_SASSTATUS_SUCCESS) {
+                    qDebug("Unrecognized SAS (SMP) error 0x%x", smpReply->SASStatus);
+                    break;
+                }
+                if (smpReply->IOCStatus == MPI_IOCSTATUS_SAS_SMP_REQUEST_FAILED)
+                    qDebug("SMP request failed (IOCStatus)");
+                else if (smpReply->IOCStatus == MPI_IOCSTATUS_SAS_SMP_DATA_OVERRUN)
+                    qDebug("SMP data overrun (IOCStatus)");
+                else if (smpReply->IOCStatus == MPI_IOCSTATUS_SCSI_DEVICE_NOT_THERE)
+                    qDebug("Device not there (IOCStatus)");
+                else
+                    qDebug("IOCStatus=0x%x", smpReply->IOCStatus);
+            }
+        }
+        if (vb > 1)
+            qDebug("IOCStatus=0x%X IOCLogInfo=0x%X SASStatus=0x%X",
+                    smpReply->IOCStatus,
+                    smpReply->IOCLogInfo,
+                    smpReply->SASStatus);
+    } else
+        ret = 0;
+
+    memcpy(rresp->response, mpiBlkPtr->dataInBufPtr, rresp->max_response_len);
+    rresp->act_response_len = -1;
+
+err_out:
+    if (mpiBlkPtr) {
+        if (mpiBlkPtr->dataInBufPtr)
+            free(mpiBlkPtr->dataInBufPtr);
+        free(mpiBlkPtr);
+    }
+    return ret;
+}
+
 static int
 smp_send_req(const struct smp_target_obj * tobj, struct smp_req_resp * rresp, int vb)
 {
@@ -430,12 +612,12 @@ smp_send_req(const struct smp_target_obj * tobj, struct smp_req_resp * rresp, in
         qDebug("%s: nothing open??", __func__);
         return -1;
     }
-    if (I_SGV4 == tobj->interface_selector)
+    if (I_SGV4 == tobj->selector)
         return send_req_lin_bsg(tobj->fd, rresp, vb);
+    else if (I_MPT == tobj->selector)
+        return send_req_mpt(tobj->fd, tobj->sas_addr64, rresp, vb);
 #if 0
-    else if (I_MPT == tobj->interface_selector)
-        return send_req_mpt(tobj->fd, tobj->subvalue, tobj->sas_addr64, rresp, vb);
-    else if (I_AAC == tobj->interface_selector)
+    else if (I_AAC == tobj->selector)
         return send_req_aac(tobj->fd, tobj->subvalue, tobj->sas_addr, rresp, vb);
 #endif
     else {
@@ -853,33 +1035,81 @@ finish:
 
 /* Returns open file descriptor to dev_name bsg device or -1 */
 static int
-open_lin_bsg_device(QString dev_name)
+open_lin_bsg_device(QString dev_name, int vb)
 {
     int ret = -1;
 
     ret = open(dev_name.toStdString().c_str(), O_RDWR);
     if (ret < 0) {
-        perror(QString("%1: open() device node failed").arg(__func__).toStdString().c_str());
-        qDebug() << "\t\ttried to open " << dev_name;
+        if (vb) {
+            perror(QString("%1: open() device node failed").arg(__func__).toStdString().c_str());
+            qDebug() << "\t\ttried to open " << dev_name;
+        }
     }
     return ret;
 }
 
+/* Part of interface to upper level. */
 int
-smp_initiator_open(QString device_name, struct smp_target_obj * tobj)
+open_mpt_device(QString dev_name, int vb)
 {
     int res;
+    struct stat st;
 
+    try {
+        res = open(dev_name.toStdString().c_str(), O_RDWR);
+        if (res < 0) {
+            throw QString("%1: open() device node failed").arg(__func__);
+        } else if (fstat(res, &st) >= 0) {
+            if ((S_ISCHR(st.st_mode)) && (MPT_DEV_MAJOR == major(st.st_rdev)) &&
+                ((MPT2_DEV_MINOR == minor(st.st_rdev)) || (MPT3_DEV_MINOR == minor(st.st_rdev)))) {
+                mptcommand = (int)MPT2COMMAND;
+            } else {
+                res = -1;
+                throw QString("%1: device node major, minor unmatched").arg(__func__);
+            }
+        } else {
+            res = -1;
+            throw QString("%1: stat failed").arg(__func__);
+        }
+
+    } catch (QString msg) {
+        if (vb) {
+            perror(msg.toStdString().c_str());
+            qDebug() << "\t\ttried to open " << dev_name;
+        }
+    }
+    return res;
+}
+
+int
+smp_initiator_open(QString device_name, Interface sel, struct smp_target_obj * tobj, int vb)
+{
+    int res = 0;
     tobj->opened = 0;
     // It's silly to "memset" a struct with QString elements
     //memset(tobj, 0, sizeof(struct smp_target_obj));
 
-    res = open_lin_bsg_device(device_name);
-    if (res < 0) {
+    try {
+        if (I_SGV4 == sel) {
+            res = open_lin_bsg_device(device_name, vb);
+            if (res < 0) {
+                throw res;
+            }
+        }
+        if (I_MPT == sel) {
+            res = open_mpt_device(device_name, vb);
+            if (res < 0) {
+                throw res;
+            }
+        }
+    } catch (...) {
+        gAppendMessage(QString("failed to open ") + device_name);
         return res;
     }
+
     tobj->device_name = device_name;
-    tobj->interface_selector = I_SGV4;
+    tobj->selector = sel;
     tobj->fd = res;
     tobj->opened = 1;
     return 0;
@@ -914,8 +1144,18 @@ bsgdev_scan_select(const struct dirent * s)
     return 0;
 }
 
+static int
+mptdev_scan_select(const struct dirent * s)
+{
+    if (strstr(s->d_name, "mpt3ctl")) {
+        return 1;
+    }
+    /* Still need to filter out "." and ".." */
+    return 0;
+}
+
 void
-smpDiscover(int vb)
+smp_discover(int vb)
 {
     int num, k, res;
     struct dirent ** namelist;
@@ -939,15 +1179,66 @@ smpDiscover(int vb)
             qDebug() << "----> exploring " << device_name;
         }
 
-        res = smp_initiator_open(device_name, &tobj);
+        res = smp_initiator_open(device_name, I_SGV4, &tobj, vb);
         if (res < 0) {
-            gAppendMessage(QString("failed to open ") + device_name);
             continue;
         }
 
         res = do_multiple(&tobj, vb);
         if (res) {
             qDebug("Exit status %d indicates error detected", res);
+        }
+
+        smp_initiator_close(&tobj);
+    }
+
+    for (k = 0; k < num; ++k) {
+        free(namelist[k]);
+    }
+    free(namelist);
+}
+
+void
+mpt_discover(int vb)
+{
+    int num, k, res;
+    struct dirent ** namelist;
+    struct smp_target_obj tobj;
+    QString device_name;
+
+    if (vb)
+        qDebug("Discovering...");
+
+    num = scandir(dev_mpt, &namelist, mptdev_scan_select, nullptr);
+    if (num <= 0) {  /* HBA mid level may not be loaded */
+        perror("scandir");
+        gAppendMessage("HBA mid level module may not be loaded.");
+        return;
+    }
+
+    for (k = 0; k < num; ++k) {
+        device_name = QString("%1/%2").arg(dev_mpt, namelist[k]->d_name);
+        gAppendMessage(device_name);
+        if (vb) {
+            qDebug() << "----> exploring " << device_name;
+        }
+
+        res = smp_initiator_open(device_name, I_MPT, &tobj, vb);
+        if (res < 0) {
+            continue;
+        }
+
+        for (int i = 0; i < 4; ++i) {
+            tobj.sas_addr64 = gControllers.wwid64(i);
+            if (0 != tobj.sas_addr64) {
+                if (vb) {
+                    qDebug("   -> with SAS address=0x%lx", tobj.sas_addr64);
+                }
+                res = do_multiple(&tobj, vb);
+                if (res) {
+                    qDebug("Exit status %d indicates error detected", res);
+                }
+            }
         }
 
         smp_initiator_close(&tobj);
@@ -1028,15 +1319,15 @@ finish:
 }
 
 void
-slot_discover(int verbose)
+slot_discover(int vb)
 {
     int num, k, res;
     struct dirent ** namelist;
     struct smp_target_obj tobj;
     QString device_name;
 
-    if (verbose)
-        qDebug("discovering...");
+    if (vb)
+        qDebug("Slot discovering...");
 
     num = scandir(dev_bsg, &namelist, bsgdev_scan_select, alphasort);
     if (num <= 0) {  /* HBA mid level may not be loaded */
@@ -1047,17 +1338,16 @@ slot_discover(int verbose)
 
     for (k = 0; k < num; ++k) {
         device_name = QString("%1/%2").arg(dev_bsg, namelist[k]->d_name);
-        if (verbose) {
+        if (vb) {
             qDebug() << "----> exploring " << device_name;
         }
 
-        res = smp_initiator_open(device_name, &tobj);
+        res = smp_initiator_open(device_name, I_SGV4, &tobj, vb);
         if (res < 0) {
-            gAppendMessage(QString("failed to open ") + device_name);
             continue;
         }
 
-        res = do_multiple_slot(&tobj, verbose);
+        res = do_multiple_slot(&tobj, vb);
         if (res) {
             qDebug("Exit status %d indicates error detected", res);
         }
@@ -1072,7 +1362,7 @@ slot_discover(int verbose)
 }
 
 void
-phy_control(struct smp_target_obj * tobj, int phy_id, bool disable, int verbose)
+phy_control(struct smp_target_obj * tobj, int phy_id, bool disable, int vb)
 {
     int k, res;
     uint8_t smp_req[] = {
@@ -1086,8 +1376,8 @@ phy_control(struct smp_target_obj * tobj, int phy_id, bool disable, int verbose)
     smp_req[9] = phy_id;
     smp_req[10] = disable ? 3 : 2;  // 02h: HARD RESET, 03h: DISABLE
 
-    if (verbose) {
-        QString msg = "    Phy control request: ";
+    if (vb) {
+        QString msg = QString::asprintf("    Phy %s request: ", disable ? "off" : "on");
         for (k = 0; k < (int)sizeof(smp_req); ++k) {
             if (0 == (k % 16)) {
                 qDebug() << msg;
@@ -1105,11 +1395,11 @@ phy_control(struct smp_target_obj * tobj, int phy_id, bool disable, int verbose)
     smp_rr.request = smp_req;
     smp_rr.max_response_len = sizeof(smp_resp);
     smp_rr.response = smp_resp;
-    res = smp_send_req(tobj, &smp_rr, verbose);
+    res = smp_send_req(tobj, &smp_rr, vb);
 
     if (res) {
         qDebug("smp_send_req failed, res=%d", res);
-        if (0 == verbose)
+        if (0 == vb)
             qDebug("    try adding '-v' option for more debug");
     }
 }

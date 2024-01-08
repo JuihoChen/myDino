@@ -3,10 +3,6 @@
 
 #include <QString>
 
-#define I_MPT   2
-#define I_SGV4  4
-#define I_AAC   6
-
 #define DEF_TIMEOUT_MS 20000    /* 20 seconds */
 
 /* SAS transport frame types associated with SMP */
@@ -89,19 +85,38 @@
 #define SMP_FN_DISCOVER_RESP_LEN            124
 #define SMP_FN_REPORT_GENERAL_RESP_LEN      76
 
+/*
+ * Hack to cope with MPT2 controllers which use a different
+ * magic number. One one ioctl based on it is used.
+ */
+#define MPT2_MAGIC_NUMBER                   'L'
+#define MPT2COMMAND                         _IOWR(MPT2_MAGIC_NUMBER,20,struct mpt_ioctl_command)
+
+#define MPT_DEV_MAJOR                       10
+#define MPT_DEV_MINOR                       220
+#define MPT2_DEV_MINOR                      221
+#define MPT3_DEV_MINOR                      222
+
+typedef enum {
+    I_MPT,
+    I_SGV4,
+    I_AAC
+} Interface;
+
 struct smp_target_obj {
     QString device_name;
-    int subvalue;               /* adapter number (opt) */
+    //int subvalue;               /* adapter number (opt) */
     //unsigned char sas_addr[8];  /* target SMP (opt) */
-    //uint64_t sas_addr64;        /* target SMP (opt) */
-    int interface_selector;
+    uint64_t sas_addr64;        /* target SMP (opt) */
+    Interface selector;
     int opened;
     int fd;
 };
 
-int smp_initiator_open(QString device_name, struct smp_target_obj * tobj);
+int smp_initiator_open(QString device_name, Interface sel, struct smp_target_obj * tobj, int verbose);
 int smp_initiator_close(struct smp_target_obj * tobj);
-void smpDiscover(int verbose);
+void smp_discover(int verbose);
+void mpt_discover(int verbose);
 void slot_discover(int verbose);
 void phy_control(struct smp_target_obj * tobj, int phy_id, bool disable, int verbose);
 

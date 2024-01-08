@@ -118,7 +118,7 @@ void ExpanderFunc::clear()
     for (int i = 0; i < NEXPDR; i++) {
         GboxInfo[i].gbox->setTitle(QString("Expander-%1").arg(i+1));
         GboxInfo[i].d_name.clear();
-        GboxInfo[i].wwid.clear();
+        GboxInfo[i].wwid64 = 0;;
         GboxInfo[i].bsg_path.clear();
         GboxInfo[i].resp_len = 0;
     }
@@ -131,10 +131,10 @@ void ExpanderFunc::setController(QString expander, uint64_t wwid)
     int ie = WWID_TO_INDEX(wwid);
 
     GboxInfo[ie].d_name = expander;
-    GboxInfo[ie].wwid = QString::asprintf("%lX", wwid);
+    GboxInfo[ie].wwid64 = wwid;
 
     QString title = GboxInfo[ie].gbox->title();
-    GboxInfo[ie].gbox->setTitle(title + QString(" [%1]").arg(GboxInfo[ie].wwid));
+    GboxInfo[ie].gbox->setTitle(title + QString::asprintf(" [%lX]", wwid));
 
     myCount++;
 }
@@ -287,7 +287,7 @@ void Widget::btnSmpDoitClicked()
     }
     else if (ui->radDiscover->isChecked()) {
         appendMessage("Discover expanders...");
-        smpDiscover(verbose);
+        mpt_discover(verbose);
         return;
     }
 #if 1
@@ -331,9 +331,8 @@ int Widget::phySetDisabled(bool disable)
                 if (gDevices.cbSlot(i)->isChecked()) {
                     // the expander is to be opened for the 1st selected slot
                     if (0 == tobj.opened) {
-                        int res = smp_initiator_open(gControllers.bsgPath(k), &tobj);
+                        int res = smp_initiator_open(gControllers.bsgPath(k), I_SGV4, &tobj, verbose);
                         if (res < 0) {
-                            gAppendMessage(QString("failed to open ") + gControllers.bsgPath(k));
                             break;
                         }
                         // signal Delay after function return

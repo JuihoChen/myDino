@@ -49,8 +49,8 @@ private:
 typedef struct ST_GBOXINFO {
     QGroupBox *gbox;
     QString d_name;
-    QString wwid;
     QString bsg_path;
+    uint64_t wwid64;
     uchar discover_resp[SMP_FN_DISCOVER_RESP_LEN];
     int resp_len;
 } _ST_GBOXINFO;
@@ -68,6 +68,7 @@ public:
 
     QGroupBox *& gbThe(int gr) { return GboxInfo[gr].gbox; }
     const QString& bsgPath(int gr) { return GboxInfo[gr].bsg_path; }
+    uint64_t wwid64(int gr) { return GboxInfo[gr].wwid64; }
 
 private:
     _ST_GBOXINFO GboxInfo[NEXPDR];
