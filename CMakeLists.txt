@@ -36,6 +36,12 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         mpi_type.h
         mpi.h
         mptctl.h
+        mpi3mr_app.cpp
+        smp_lib.h
+        mpi3mr_app.h
+        mpi30_transport.h
+        smp_mptctl_glue.h
+        mpi30_sas.h
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET myDino APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR

@@ -5,7 +5,9 @@
 #include "ui_widget.h"
 #include "widget.h"
 #include "lsscsi.h"
+#include "smp_lib.h"
 #include "smp_discover.h"
+#include "mpi3mr_app.h"
 
 #define WWID_TO_INDEX(wwid) ((wwid & 0xFF) >> 6)
 
@@ -287,7 +289,7 @@ void Widget::btnSmpDoitClicked()
     }
     else if (ui->radDiscover->isChecked()) {
         appendMessage("Discover expanders...");
-        mpt_discover(verbose);
+        mpi3mr_discover(verbose);
         return;
     }
 #if 1
@@ -315,7 +317,7 @@ void Widget::refreshSlots()
 
 int Widget::phySetDisabled(bool disable)
 {
-    struct smp_target_obj tobj;
+    smp_target_obj tobj;
     int k, i, ret = 0;
 
     // loop through the expanders discovered

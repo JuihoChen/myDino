@@ -16,37 +16,18 @@
 #ifndef __user
 #define __user
 #endif
-#ifndef u8
-typedef unsigned char u8;
-#endif
-#ifndef u16
-typedef unsigned short u16;
-#endif
-#ifndef u32
-typedef unsigned int u32;
-#endif
+#include "smp_mptctl_glue.h"
 #include "mptctl.h"
 
 #include "widget.h"
+#include "smp_lib.h"
+#include "mpi3mr_app.h"
 #include "smp_discover.h"
 
 static const char * dev_bsg = "/dev/bsg";
 static const char * dev_mpt = "/dev";
 
 static int mptcommand = (int)MPT2COMMAND;
-
-/* SAS standards include a 4 byte CRC at the end of each SMP request
-   and response frames. All current pass-throughs calculate and check
-   the CRC in the driver, but some pass-throughs want the space allocated.
- */
-struct smp_req_resp {
-    int request_len;            /* [i] in bytes, includes space for 4 byte CRC */
-    unsigned char * request;    /* [*i], includes space for CRC */
-    int max_response_len;       /* [i] in bytes, includes space for CRC */
-    unsigned char * response;   /* [*o] */
-    int act_response_len;       /* [o] -1 implies don't know */
-    int transport_err;          /* [o] 0 implies no error */
-};
 
 /* Assume original SAS implementations were based on SAS-1.1 . In SAS-2
  * and later, SMP responses should contain an accurate "response length"
@@ -303,7 +284,7 @@ my_isprint(int ch)
  *     > 0     each line has address then up to 16 ASCII-hex bytes
  *     = 0     in addition, the bytes are listed in ASCII to the right
  *     < 0     only the ASCII-hex bytes are listed (i.e. without address) */
-static void
+void
 hex2stdout(const char* str, int len, int no_ascii)
 {
     const char * p = str;
@@ -392,7 +373,7 @@ hex2stdout(const char* str, int len, int no_ascii)
 
 /* Returns 0 on success else -1 . */
 static int
-send_req_lin_bsg(int fd, struct smp_req_resp * rresp, int vb)
+send_req_lin_bsg(int fd, smp_req_resp * rresp, int vb)
 {
     struct sg_io_v4 hdr;
     unsigned char cmd[16];      /* unused */
@@ -468,13 +449,12 @@ issueMptCommand(int fd, int ioc_num, mpiIoctlBlk_t *mpiBlkPtr)
     else {
         status = 0;
     }
-
     return status;
 }
 
 /* Part of interface to upper level. */
 static int
-send_req_mpt(int fd, int64_t target_sa, struct smp_req_resp * rresp, int vb)
+send_req_mpt(int fd, int64_t target_sa, smp_req_resp * rresp, int vb)
 {
     mpiIoctlBlk_t * mpiBlkPtr = NULL;
     pSmpPassthroughRequest_t smpReq;
@@ -606,7 +586,7 @@ err_out:
 }
 
 static int
-smp_send_req(const struct smp_target_obj * tobj, struct smp_req_resp * rresp, int vb)
+smp_send_req(const smp_target_obj * tobj, smp_req_resp * rresp, int vb)
 {
     if ((NULL == tobj) || (0 == tobj->opened)) {
         qDebug("%s: nothing open??", __func__);
@@ -616,10 +596,8 @@ smp_send_req(const struct smp_target_obj * tobj, struct smp_req_resp * rresp, in
         return send_req_lin_bsg(tobj->fd, rresp, vb);
     else if (I_MPT == tobj->selector)
         return send_req_mpt(tobj->fd, tobj->sas_addr64, rresp, vb);
-#if 0
-    else if (I_AAC == tobj->selector)
-        return send_req_aac(tobj->fd, tobj->subvalue, tobj->sas_addr, rresp, vb);
-#endif
+    else if (I_SGV4_MPI == tobj->selector)
+        return send_req_mpi3mr_bsg(tobj->fd, tobj->sas_addr64, rresp, vb);
     else {
         qDebug("%s: no transport??", __func__);
         return -1;
@@ -658,13 +636,14 @@ smp_get_func_res_str(int func_res, int buff_len, char * buff)
  * points. Returns -3 (or less) -> SMP_LIB errors negated (-4 - smp_err),
  * -1 for other errors. */
 static int
-get_num_phys(struct smp_target_obj * top, uint8_t * rp, bool * t2t_routingp, int vb)
+get_num_phys(smp_target_obj * top, uint8_t * rp, bool * t2t_routingp, int vb)
 {
     bool t2t;
     int len, res, k, act_resplen;
     char * cp;
-    uint8_t smp_req[] = {SMP_FRAME_TYPE_REQ, SMP_FN_REPORT_GENERAL, 0, 0, 0, 0, 0, 0};
-    struct smp_req_resp smp_rr;
+    uint8_t smp_req[] = {SMP_FRAME_TYPE_REQ, SMP_FN_REPORT_GENERAL, 0, 0,
+                         0, 0, 0, 0};
+    smp_req_resp smp_rr;
     char b[256];
 
     if (vb) {
@@ -675,6 +654,9 @@ get_num_phys(struct smp_target_obj * top, uint8_t * rp, bool * t2t_routingp, int
     }
     memset(&smp_rr, 0, sizeof(smp_rr));
     smp_rr.request_len = sizeof(smp_req);
+    if (I_SGV4_MPI == top->selector) {  // hacked result???
+        smp_rr.request_len -= 4;  // exclude CRC field
+    }
     smp_rr.request = smp_req;
     smp_rr.max_response_len = SMP_FN_REPORT_GENERAL_RESP_LEN;
     smp_rr.response = rp;
@@ -736,14 +718,14 @@ get_num_phys(struct smp_target_obj * top, uint8_t * rp, bool * t2t_routingp, int
    -3 (or less) -> SMP_LIB errors negated (-4 - smp_err),
    -1 for other errors */
 static int
-do_discover(struct smp_target_obj * top, int disc_phy_id, uint8_t * resp, int max_resp_len, int vb)
+do_discover(smp_target_obj * top, int disc_phy_id, uint8_t * resp, int max_resp_len, int vb)
 {
     int len, res, k, act_resplen;
     char * cp;
     uint8_t smp_req[] = {SMP_FRAME_TYPE_REQ, SMP_FN_DISCOVER, 0, 0,
                          0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0};
     char b[256];
-    struct smp_req_resp smp_rr;
+    smp_req_resp smp_rr;
 
     memset(resp, 0, max_resp_len);
     len = (max_resp_len - 8) / 4;
@@ -758,6 +740,9 @@ do_discover(struct smp_target_obj * top, int disc_phy_id, uint8_t * resp, int ma
     }
     memset(&smp_rr, 0, sizeof(smp_rr));
     smp_rr.request_len = sizeof(smp_req);
+    if (I_SGV4_MPI == top->selector) {  // hacked result???
+        smp_rr.request_len -= 4;  // exclude CRC field
+    }
     smp_rr.request = smp_req;
     smp_rr.max_response_len = max_resp_len;
     smp_rr.response = resp;
@@ -812,8 +797,8 @@ do_discover(struct smp_target_obj * top, int disc_phy_id, uint8_t * resp, int ma
 
 /* Calls do_discover() multiple times. Summarizes info into one
  * line per phy. Returns 0 if ok, else function result. */
-static int
-do_multiple(struct smp_target_obj * top, int vb)
+int
+do_multiple(smp_target_obj * top, int vb)
 {
     int ret = 0;
     bool has_t2t = false;
@@ -936,7 +921,7 @@ do_multiple(struct smp_target_obj * top, int vb)
             continue;
         }
 
-        /* Attached SAS Address (bytes 16-23) */
+        /* Attached SAS Address (bytes 24-31) */
         ull = sg_get_unaligned_be64(rp + 24);
         /* Virtual Phy (byte 43 bit 8) */
         virt = !!(0x80 & rp[43]);
@@ -1065,8 +1050,10 @@ open_mpt_device(QString dev_name, int vb)
                 ((MPT2_DEV_MINOR == minor(st.st_rdev)) || (MPT3_DEV_MINOR == minor(st.st_rdev)))) {
                 mptcommand = (int)MPT2COMMAND;
             } else {
+                int major = major(st.st_rdev);
+                int minor = minor(st.st_rdev);
                 res = -1;
-                throw QString("%1: device node major, minor unmatched").arg(__func__);
+                throw QString("%1: device node major,minor(%2,%3) unmatched").arg(__func__).arg(major).arg(minor);
             }
         } else {
             res = -1;
@@ -1083,7 +1070,7 @@ open_mpt_device(QString dev_name, int vb)
 }
 
 int
-smp_initiator_open(QString device_name, Interface sel, struct smp_target_obj * tobj, int vb)
+smp_initiator_open(QString device_name, IntfEnum sel, smp_target_obj * tobj, int vb)
 {
     int res = 0;
     tobj->opened = 0;
@@ -1091,7 +1078,7 @@ smp_initiator_open(QString device_name, Interface sel, struct smp_target_obj * t
     //memset(tobj, 0, sizeof(struct smp_target_obj));
 
     try {
-        if (I_SGV4 == sel) {
+        if (I_SGV4 == sel || I_SGV4_MPI == sel) {
             res = open_lin_bsg_device(device_name, vb);
             if (res < 0) {
                 throw res;
@@ -1116,7 +1103,7 @@ smp_initiator_open(QString device_name, Interface sel, struct smp_target_obj * t
 }
 
 int
-smp_initiator_close(struct smp_target_obj * tobj)
+smp_initiator_close(smp_target_obj * tobj)
 {
     int res;
 
@@ -1159,7 +1146,7 @@ smp_discover(int vb)
 {
     int num, k, res;
     struct dirent ** namelist;
-    struct smp_target_obj tobj;
+    smp_target_obj tobj;
     QString device_name;
 
     if (vb)
@@ -1203,7 +1190,7 @@ mpt_discover(int vb)
 {
     int num, k, res;
     struct dirent ** namelist;
-    struct smp_target_obj tobj;
+    smp_target_obj tobj;
     QString device_name;
 
     if (vb)
@@ -1251,7 +1238,7 @@ mpt_discover(int vb)
 }
 
 static int
-do_multiple_slot(struct smp_target_obj * top, int vb)
+do_multiple_slot(smp_target_obj * top, int vb)
 {
     int ret = 0;
     int len, k, num, dsn;
@@ -1323,7 +1310,7 @@ slot_discover(int vb)
 {
     int num, k, res;
     struct dirent ** namelist;
-    struct smp_target_obj tobj;
+    smp_target_obj tobj;
     QString device_name;
 
     if (vb)
@@ -1362,7 +1349,7 @@ slot_discover(int vb)
 }
 
 void
-phy_control(struct smp_target_obj * tobj, int phy_id, bool disable, int vb)
+phy_control(smp_target_obj * tobj, int phy_id, bool disable, int vb)
 {
     int k, res;
     uint8_t smp_req[] = {
@@ -1371,7 +1358,7 @@ phy_control(struct smp_target_obj * tobj, int phy_id, bool disable, int vb)
         0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,
     };
     uint8_t smp_resp[8];
-    struct smp_req_resp smp_rr;
+    smp_req_resp smp_rr;
 
     smp_req[9] = phy_id;
     smp_req[10] = disable ? 3 : 2;  // 02h: HARD RESET, 03h: DISABLE
