@@ -654,8 +654,8 @@ get_num_phys(smp_target_obj * top, uint8_t * rp, bool * t2t_routingp, int vb)
     }
     memset(&smp_rr, 0, sizeof(smp_rr));
     smp_rr.request_len = sizeof(smp_req);
-    if (I_SGV4_MPI == top->selector) {  // hacked result???
-        smp_rr.request_len -= 4;  // exclude CRC field
+    if (I_SGV4_MPI == top->selector) {
+        smp_rr.request_len -= 4;  // exclude CRC field on path-throughs
     }
     smp_rr.request = smp_req;
     smp_rr.max_response_len = SMP_FN_REPORT_GENERAL_RESP_LEN;
@@ -740,8 +740,8 @@ do_discover(smp_target_obj * top, int disc_phy_id, uint8_t * resp, int max_resp_
     }
     memset(&smp_rr, 0, sizeof(smp_rr));
     smp_rr.request_len = sizeof(smp_req);
-    if (I_SGV4_MPI == top->selector) {  // hacked result???
-        smp_rr.request_len -= 4;  // exclude CRC field
+    if (I_SGV4_MPI == top->selector) {
+        smp_rr.request_len -= 4;  // exclude CRC field on path-throughs
     }
     smp_rr.request = smp_req;
     smp_rr.max_response_len = max_resp_len;
@@ -1237,7 +1237,7 @@ mpt_discover(int vb)
     free(namelist);
 }
 
-static int
+int
 do_multiple_slot(smp_target_obj * top, int vb)
 {
     int ret = 0;
@@ -1288,6 +1288,9 @@ do_multiple_slot(smp_target_obj * top, int vb)
         if (rp[14] & 0xf) {
             /* ATTACHED DEVICE NAME (bytes 52-59) */
             uint64_t sa = sg_get_unaligned_be64(rp + 52);
+            if (I_SGV4_MPI == top->selector) {
+                sa = sg_get_unaligned_be64(rp + 24);
+            }
             if (0 != sa && 0 == hba_sa) {
                 hba_sa = sa;
                 gControllers.setDiscoverResp(top->device_name, ull, sa, rp, len);
@@ -1349,7 +1352,7 @@ slot_discover(int vb)
 }
 
 void
-phy_control(smp_target_obj * tobj, int phy_id, bool disable, int vb)
+phy_control(smp_target_obj * top, int phy_id, bool disable, int vb)
 {
     int k, res;
     uint8_t smp_req[] = {
@@ -1379,10 +1382,13 @@ phy_control(smp_target_obj * tobj, int phy_id, bool disable, int vb)
 
     memset(&smp_rr, 0, sizeof(smp_rr));
     smp_rr.request_len = sizeof(smp_req);
+    if (I_SGV4_MPI == top->selector) {
+        smp_rr.request_len -= 4;  // exclude CRC field on path-throughs
+    }
     smp_rr.request = smp_req;
     smp_rr.max_response_len = sizeof(smp_resp);
     smp_rr.response = smp_resp;
-    res = smp_send_req(tobj, &smp_rr, vb);
+    res = smp_send_req(top, &smp_rr, vb);
 
     if (res) {
         qDebug("smp_send_req failed, res=%d", res);

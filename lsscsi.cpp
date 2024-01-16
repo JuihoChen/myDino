@@ -28,7 +28,7 @@
 
 #define UINT64_LAST ((uint64_t)~0)
 
-static bool hba9500 = false;
+bool hba9500 = false;
 
 static const char * sysfsroot = "/sys";
 static const char * bus_scsi_devs = "/bus/scsi/devices";

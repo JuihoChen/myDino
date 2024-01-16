@@ -92,6 +92,7 @@ private slots:
     void btnSmpDoitClicked();
 
 private:
+    void FilloutCanvas();
     void refreshSlots();
     int phySetDisabled(bool disable);
 

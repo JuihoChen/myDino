@@ -120,8 +120,8 @@ void ExpanderFunc::clear()
     for (int i = 0; i < NEXPDR; i++) {
         GboxInfo[i].gbox->setTitle(QString("Expander-%1").arg(i+1));
         GboxInfo[i].d_name.clear();
-        GboxInfo[i].wwid64 = 0;;
         GboxInfo[i].bsg_path.clear();
+        GboxInfo[i].wwid64 = 0;;
         GboxInfo[i].resp_len = 0;
     }
     myCount = 0;
@@ -237,14 +237,12 @@ Widget::Widget(QWidget *parent)
     trayIcon->show();
     setWindowIcon(icon);
 
-    appendMessage("Here lists the messages:");
-
     gCombo = ui->cbxSlot;
     gText = ui->textBrowser;
-    gDevices.clear();
-    gControllers.clear();
-    list_sdevices(verbose);
-    slot_discover(verbose);
+
+    FilloutCanvas();
+
+    appendMessage("Here lists the messages:");
 }
 
 Widget::~Widget()
@@ -305,13 +303,19 @@ void Widget::btnSmpDoitClicked()
 #endif
 }
 
-void Widget::refreshSlots()
+void Widget::FilloutCanvas()
 {
-    appendMessage("Refresh slots information...");
     gDevices.clear();
     gControllers.clear();
     list_sdevices(verbose);
-    slot_discover(verbose);
+    hba9500 ? slot_discover(verbose) : mpi3mr_slot_discover(verbose);
+}
+
+void Widget::refreshSlots()
+{
+    appendMessage("Refresh slots information...");
+
+    FilloutCanvas();
     appendMessage(QString::asprintf("Found %d expanders and %d devices", gControllers.count(), gDevices.count()));
 }
 
@@ -333,7 +337,8 @@ int Widget::phySetDisabled(bool disable)
                 if (gDevices.cbSlot(i)->isChecked()) {
                     // the expander is to be opened for the 1st selected slot
                     if (0 == tobj.opened) {
-                        int res = smp_initiator_open(gControllers.bsgPath(k), I_SGV4, &tobj, verbose);
+                        IntfEnum sel = hba9500 ? I_SGV4 : I_SGV4_MPI;
+                        int res = smp_initiator_open(gControllers.bsgPath(k), sel, &tobj, verbose);
                         if (res < 0) {
                             break;
                         }
@@ -343,6 +348,8 @@ int Widget::phySetDisabled(bool disable)
                     // check if a resonable phy id (4 - 31)
                     int phy_id = gDevices.phyId(i);
                     if (phy_id > 3 && phy_id < 32) {
+                        // assign sas address for path-through
+                        tobj.sas_addr64 = gControllers.wwid64(k);
                         // to issue PHY CONTROL request
                         phy_control(&tobj, phy_id, disable, verbose);
                     } else {

@@ -45,7 +45,7 @@ send_req_mpi3mr_bsg(int fd, int64_t target_sa, smp_req_resp * rresp, int vb)
     memcpy(request_m, rresp->request, rresp->request_len);
     mpi_request = (struct mpi3_smp_passthrough_request *)(request_m + rresp->request_len);
     mpi_request->function = MPI3_FUNCTION_SMP_PASSTHROUGH;
-    mpi_request->io_unit_port = 0xFF;   // ?invalid port number (hacked)
+    mpi_request->io_unit_port = 0xFF;   // ?invalid port number (rphy)
     mpi_request->sas_address = target_sa;
 
     mbp.cmd_type = MPI3MR_MPT_CMD;
@@ -76,10 +76,10 @@ send_req_mpi3mr_bsg(int fd, int64_t target_sa, smp_req_resp * rresp, int vb)
     hdr.response = (uintptr_t) reply_m;
 
     hdr.dout_xfer_len = rresp->request_len + request_sz;
-    hdr.dout_xferp = (uintptr_t) request_m;  ///rresp->request;
+    hdr.dout_xferp = (uintptr_t) request_m;
 
     hdr.din_xfer_len = rresp->max_response_len + reply_sz;
-    hdr.din_xferp = (uintptr_t) reply_m; ///rresp->response;
+    hdr.din_xferp = (uintptr_t) reply_m;
 
     hdr.timeout = DEF_TIMEOUT_MS;
 
@@ -157,8 +157,8 @@ mpi3mr_discover(int vb)
             continue;
         }
 
-        //for (int i = 0; i < 4; ++i) {
-        for (int i = 1; i < 2; ++i) {
+        for (int i = 0; i < 4; ++i) {
+            // assign sas address for path-through
             tobj.sas_addr64 = gControllers.wwid64(i);
             if (0 != tobj.sas_addr64) {
                 if (vb) {
@@ -167,6 +167,61 @@ mpi3mr_discover(int vb)
                 res = do_multiple(&tobj, vb);
                 if (res) {
                     qDebug("Exit status %d indicates error detected", res);
+                }
+            }
+        }
+
+        smp_initiator_close(&tobj);
+    }
+
+    for (k = 0; k < num; ++k) {
+        free(namelist[k]);
+    }
+    free(namelist);
+}
+
+void
+mpi3mr_slot_discover(int vb)
+{
+    int num, k, res;
+    struct dirent ** namelist;
+    smp_target_obj tobj;
+    QString device_name;
+
+    if (vb)
+        qDebug("Slot discovering...");
+
+    num = scandir(dev_bsg, &namelist, mpi3mrdev_scan_select, alphasort);
+    if (num <= 0) {  /* HBA mid level may not be loaded */
+        perror("scandir");
+        gAppendMessage("HBA mid level module may not be loaded.");
+        return;
+    }
+
+    for (k = 0; k < num; ++k) {
+        device_name = QString("%1/%2").arg(dev_bsg, namelist[k]->d_name);
+        if (vb) {
+            qDebug() << "----> exploring " << device_name;
+        }
+
+        res = smp_initiator_open(device_name, I_SGV4_MPI, &tobj, vb);
+        if (res < 0) {
+            continue;
+        }
+
+        for (int i = 0; i < 4; ++i) {
+            // check if the next expander is to be discovered
+            if (true == gControllers.bsgPath(i).isEmpty()) {
+                // assign sas address for path-through
+                tobj.sas_addr64 = gControllers.wwid64(i);
+                if (0 != tobj.sas_addr64) {
+                    if (vb) {
+                        qDebug("   -> with SAS address=0x%lx", tobj.sas_addr64);
+                    }
+                    res = do_multiple_slot(&tobj, vb);
+                    if (res) {
+                        qDebug("Exit status %d indicates error detected", res);
+                    }
                 }
             }
         }
