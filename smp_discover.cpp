@@ -1254,7 +1254,7 @@ do_multiple_slot(smp_target_obj * top, int vb)
     }
 
     for (k = 0; k < 32; ++k) {
-        len = do_discover(top, k, rp, SMP_FN_DISCOVER_RESP_LEN, false);
+        len = do_discover(top, k, rp, SMP_FN_DISCOVER_RESP_LEN, vb);
         if (len < 0)
             ret = (len < -2) ? (-4 - len) : len;
         else

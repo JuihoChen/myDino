@@ -21,8 +21,8 @@
 #define NUM_BYTES (sizeof(struct mpi3mr_bsg_packet) + (10 * sizeof(struct mpi3mr_buf_entry)))
 
 static char mbp_pool[NUM_BYTES];
-static char request_m[1200];
-static char reply_m[1200];
+static char request_m[1024];
+static char reply_m[1024];
 static const char * dev_bsg = "/dev/bsg";
 static struct mpi3mr_bsg_packet & mbp = *(struct mpi3mr_bsg_packet *)mbp_pool;
 
@@ -96,16 +96,14 @@ send_req_mpi3mr_bsg(int fd, int64_t target_sa, smp_req_resp * rresp, int vb)
     memcpy(rresp->response, reply_m, rresp->max_response_len);
     mpi_reply = (struct mpi3_smp_passthrough_reply *)(reply_m + rresp->max_response_len);
 
-    res = hdr.din_xfer_len - hdr.din_resid;
-    rresp->act_response_len = res;
+    rresp->act_response_len = mpi_reply->response_data_length;
     /* was: rresp->act_response_len = -1; */
     if (vb > 1) {
         qDebug("%s: driver_status=%u, transport_status=%u", __func__, hdr.driver_status, hdr.transport_status);
         qDebug("    device_status=%u, duration=%u, info=%u", hdr.device_status, hdr.duration, hdr.info);
         qDebug("    din_resid=%d, dout_resid=%d", hdr.din_resid, hdr.dout_resid);
-        qDebug("  smp_req_resp::max_response_len=%d act_response_len=%d", rresp->max_response_len, res);
-        qDebug("  response (din_resid might exclude CRC):");
-        hex2stdout((const char *)rresp->response, (res > 0) ? res : (int)hdr.din_xfer_len, 1);
+        qDebug("  smp_req_resp::max_response_len=%d act_response_len=%d", rresp->max_response_len, rresp->act_response_len);
+        hex2stdout((const char *)rresp->response, rresp->act_response_len, 1);
         hex2stdout((const char *)mpi_reply, reply_sz, 1);
     }
     if (hdr.driver_status)
