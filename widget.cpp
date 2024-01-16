@@ -240,9 +240,8 @@ Widget::Widget(QWidget *parent)
     gCombo = ui->cbxSlot;
     gText = ui->textBrowser;
 
-    FilloutCanvas();
-
     appendMessage("Here lists the messages:");
+    filloutCanvas();
 }
 
 Widget::~Widget()
@@ -303,7 +302,7 @@ void Widget::btnSmpDoitClicked()
 #endif
 }
 
-void Widget::FilloutCanvas()
+void Widget::filloutCanvas()
 {
     gDevices.clear();
     gControllers.clear();
@@ -315,7 +314,7 @@ void Widget::refreshSlots()
 {
     appendMessage("Refresh slots information...");
 
-    FilloutCanvas();
+    filloutCanvas();
     appendMessage(QString::asprintf("Found %d expanders and %d devices", gControllers.count(), gDevices.count()));
 }
 
