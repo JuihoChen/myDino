@@ -28,7 +28,7 @@ static struct mpi3mr_bsg_packet & mbp = *(struct mpi3mr_bsg_packet *)mbp_pool;
 
 /* Returns 0 on success else -1 . */
 int
-send_req_mpi3mr_bsg(int fd, int64_t target_sa, smp_req_resp * rresp, int vb)
+send_req_mpi3mr_bsg(int fd, int subvalue, int64_t target_sa, smp_req_resp * rresp, int vb)
 {
     struct sg_io_v4 hdr;
     struct mpi3_smp_passthrough_request * mpi_request;
@@ -45,11 +45,12 @@ send_req_mpi3mr_bsg(int fd, int64_t target_sa, smp_req_resp * rresp, int vb)
     memcpy(request_m, rresp->request, rresp->request_len);
     mpi_request = (struct mpi3_smp_passthrough_request *)(request_m + rresp->request_len);
     mpi_request->function = MPI3_FUNCTION_SMP_PASSTHROUGH;
-    mpi_request->io_unit_port = 0xFF;   // ?invalid port number (rphy)
+    mpi_request->io_unit_port = 0xFF;       // ?invalid port number (rphy)
     mpi_request->sas_address = target_sa;
 
     mbp.cmd_type = MPI3MR_MPT_CMD;
-    mbp.cmd.mptcmd.timeout = 180;   // ?a hacked value
+    mbp.cmd.mptcmd.timeout = 180;           // ?a hacked value
+    mbp.cmd.mptcmd.mrioc_id = subvalue;     // Set the IOC number prior to issuing this command.
     mbp.cmd.mptcmd.buf_entry_list.num_of_entries = 4;
     mbp.cmd.mptcmd.buf_entry_list.buf_entry[bi].buf_type = MPI3MR_BSG_BUFTYPE_DATA_OUT;
     mbp.cmd.mptcmd.buf_entry_list.buf_entry[bi].buf_len = rresp->request_len;
@@ -155,6 +156,9 @@ mpi3mr_discover(int vb)
             continue;
         }
 
+        // assign the IOC number for multiple adapters case
+        tobj.subvalue = k;
+
         for (int i = 0; i < 4; ++i) {
             // assign sas address for path-through
             tobj.sas_addr64 = gControllers.wwid64(i);
@@ -206,6 +210,9 @@ mpi3mr_slot_discover(int vb)
         if (res < 0) {
             continue;
         }
+
+        // assign the IOC number for multiple adapters case
+        tobj.subvalue = k;
 
         for (int i = 0; i < 4; ++i) {
             // check if the next expander is to be discovered

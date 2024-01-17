@@ -121,6 +121,7 @@ void ExpanderFunc::clear()
         GboxInfo[i].gbox->setTitle(QString("Expander-%1").arg(i+1));
         GboxInfo[i].d_name.clear();
         GboxInfo[i].bsg_path.clear();
+        GboxInfo[i].ioc_num = 0;;
         GboxInfo[i].wwid64 = 0;;
         GboxInfo[i].resp_len = 0;
     }
@@ -141,11 +142,15 @@ void ExpanderFunc::setController(QString expander, uint64_t wwid)
     myCount++;
 }
 
-void ExpanderFunc::setDiscoverResp(QString path, uint64_t ull, uint64_t sa, uchar * src, int len)
+void ExpanderFunc::setDiscoverResp(QString path, int subvalue, uint64_t ull, uint64_t sa, uchar * src, int len)
 {
     int el = WWID_TO_INDEX(ull);
+
     // save the working path for later use cases
     GboxInfo[el].bsg_path = path;
+
+    // save the IOC number for the very Controller's ID
+    GboxInfo[el].ioc_num = subvalue;
 
     // src area is bigger than discover_resp and zero set before discovery
     memcpy(GboxInfo[el].discover_resp, src, SMP_FN_DISCOVER_RESP_LEN);
@@ -341,6 +346,8 @@ int Widget::phySetDisabled(bool disable)
                         if (res < 0) {
                             break;
                         }
+                        // assign the IOC number for multiple adapters case
+                        tobj.subvalue = gControllers.subvalue(k);
                         // signal Delay after function return
                         ret = 1;
                     }

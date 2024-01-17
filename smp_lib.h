@@ -96,7 +96,7 @@ typedef enum {
 
 typedef struct _smp_target_obj {
     QString device_name;
-    //int subvalue;               /* adapter number (opt) */
+    int subvalue;               /* adapter number (opt) */
     //unsigned char sas_addr[8];  /* target SMP (opt) */
     uint64_t sas_addr64;        /* target SMP (opt) */
     IntfEnum selector;

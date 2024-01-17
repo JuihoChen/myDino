@@ -597,7 +597,7 @@ smp_send_req(const smp_target_obj * tobj, smp_req_resp * rresp, int vb)
     else if (I_MPT == tobj->selector)
         return send_req_mpt(tobj->fd, tobj->sas_addr64, rresp, vb);
     else if (I_SGV4_MPI == tobj->selector)
-        return send_req_mpi3mr_bsg(tobj->fd, tobj->sas_addr64, rresp, vb);
+        return send_req_mpi3mr_bsg(tobj->fd, tobj->subvalue, tobj->sas_addr64, rresp, vb);
     else {
         qDebug("%s: no transport??", __func__);
         return -1;
@@ -1293,7 +1293,7 @@ do_multiple_slot(smp_target_obj * top, int vb)
             }
             if (0 != sa && 0 == hba_sa) {
                 hba_sa = sa;
-                gControllers.setDiscoverResp(top->device_name, ull, sa, rp, len);
+                gControllers.setDiscoverResp(top->device_name, top->subvalue, ull, sa, rp, len);
             }
         } else {
             /* Device Slot Number */

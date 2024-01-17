@@ -50,6 +50,7 @@ typedef struct ST_GBOXINFO {
     QGroupBox *gbox;
     QString d_name;
     QString bsg_path;
+    int ioc_num;
     uint64_t wwid64;
     uchar discover_resp[SMP_FN_DISCOVER_RESP_LEN];
     int resp_len;
@@ -63,11 +64,12 @@ public:
 
     void clear();
     void setController(QString expander, uint64_t wwid);
-    void setDiscoverResp(QString path, uint64_t ull, uint64_t sa, uchar * src, int len);
+    void setDiscoverResp(QString path, int subvalue, uint64_t ull, uint64_t sa, uchar * src, int len);
     int count() { return myCount; }
 
     QGroupBox *& gbThe(int gr) { return GboxInfo[gr].gbox; }
     const QString& bsgPath(int gr) { return GboxInfo[gr].bsg_path; }
+    const int subvalue(int gr) { return GboxInfo[gr].ioc_num; }
     uint64_t wwid64(int gr) { return GboxInfo[gr].wwid64; }
 
 private:
