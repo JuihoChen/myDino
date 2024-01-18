@@ -22,16 +22,21 @@ ExpanderFunc gControllers;
 void DeviceFunc::clear()
 {
     for (int i = 0; i < NSLOT; i++) {
-        SlotInfo[i].cb_slot->setText(QString("Slot %1").arg(i+1));
-        SlotInfo[i].cb_slot->setStyleSheet("QCheckBox:enabled{color: black;} QCheckBox:disabled{color: grey;}");
-        SlotInfo[i].cb_slot->setDisabled(true);
-        SlotInfo[i].cb_slot->setCheckState(Qt::CheckState::Unchecked);
-        SlotInfo[i].d_name.clear();
-        SlotInfo[i].wwid.clear();
-        SlotInfo[i].block.clear();
-        SlotInfo[i].resp_len = 0;
+        clrSlot(i);
     }
     myCount = 0;
+}
+
+void DeviceFunc::clrSlot(int sl)
+{
+    SlotInfo[sl].cb_slot->setText(QString("Slot %1").arg(sl+1));
+    SlotInfo[sl].cb_slot->setStyleSheet("QCheckBox:enabled{color: black;} QCheckBox:disabled{color: grey;}");
+    SlotInfo[sl].cb_slot->setDisabled(true);
+    SlotInfo[sl].cb_slot->setCheckState(Qt::CheckState::Unchecked);
+    SlotInfo[sl].d_name.clear();
+    SlotInfo[sl].wwid.clear();
+    SlotInfo[sl].block.clear();
+    SlotInfo[sl].resp_len = 0;
 }
 
 void DeviceFunc::setSlot(QString dir_name, QString device, int sl)
@@ -75,24 +80,32 @@ void DeviceFunc::setSlot(QString dir_name, QString device, QString enclosure_dev
 
 void DeviceFunc::setDiscoverResp(int dsn, uchar * src, int len)
 {
-    if (0 != dsn && (unsigned)dsn <= NSLOT) {
+    if (dsn > 0 && dsn <= NSLOT) {
         int sl = dsn - 1;
-        // src area is bigger than discover_resp and zero set before discovery
-        memcpy(SlotInfo[sl].discover_resp, src, SMP_FN_DISCOVER_RESP_LEN);
-        SlotInfo[sl].resp_len = len;
-        SlotInfo[sl].cb_slot->setEnabled(true);
-        if (len > 0) {
+        if (len > 13) {
             int negot = src[13] & 0xf;
             if (negot == 1) {
+                // SCSI driver lags refreshing device info.
+                if (false == slotVacant(sl)) {
+                    clrSlot(sl);
+                    myCount--;
+                }
                 QString title = SlotInfo[sl].cb_slot->text();
                 SlotInfo[sl].cb_slot->setText(title.append(" (phy off)"));
+                SlotInfo[sl].cb_slot->setStyleSheet("QCheckBox:enabled{color: red;} QCheckBox:disabled{color: grey;}");
             }
             /* attached SAS device type: 0-> none, 1-> (SAS or SATA end) device,
              * 2-> expander, 3-> fanout expander (obsolete), rest-> reserved */
             int adt = ((0x70 & src[12]) >> 4);
-            if (0 == adt && !SlotInfo[sl].d_name.isEmpty())
+            if (0 == adt && false == slotVacant(sl)) {
                 gAppendMessage(QString::asprintf("[%s] slot %d setting error!", __func__, dsn));
+            }
         }
+
+        // src area is bigger than discover_resp and zero set before discovery
+        memcpy(SlotInfo[sl].discover_resp, src, SMP_FN_DISCOVER_RESP_LEN);
+        SlotInfo[sl].resp_len = len;
+        SlotInfo[sl].cb_slot->setEnabled(true);
     } else {
         qDebug("[%s] incorrect DSN numbering:%d", __func__, dsn);
     }
@@ -100,7 +113,7 @@ void DeviceFunc::setDiscoverResp(int dsn, uchar * src, int len)
 
 void DeviceFunc::setSlotLabel(int sl)
 {
-    if (gCombo && !SlotInfo[sl].d_name.isEmpty())
+    if (nullptr != gCombo && false == slotVacant(sl))
     switch (gCombo->currentIndex())
     {
     case 0:
@@ -244,6 +257,8 @@ Widget::Widget(QWidget *parent)
 
     gCombo = ui->cbxSlot;
     gText = ui->textBrowser;
+
+    ui->radDiscover->hide();    // temporarily hide for release
 
     appendMessage("Here lists the messages:");
     filloutCanvas();
