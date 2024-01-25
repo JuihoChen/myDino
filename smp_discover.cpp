@@ -18,6 +18,7 @@
 #endif
 #include "smp_mptctl_glue.h"
 #include "mptctl.h"
+#include "mpi30_transport.h"
 
 #include "widget.h"
 #include "smp_lib.h"
@@ -285,9 +286,9 @@ my_isprint(int ch)
  *     = 0     in addition, the bytes are listed in ASCII to the right
  *     < 0     only the ASCII-hex bytes are listed (i.e. without address) */
 void
-hex2stdout(const char* str, int len, int no_ascii)
+hex2stdout(void * str, int len, int no_ascii)
 {
-    const char * p = str;
+    const char * p = (const char *) str;
     const char * formatstr;
     unsigned char c;
     char buff[82];
@@ -392,7 +393,7 @@ send_req_lin_bsg(int fd, smp_req_resp * rresp, int vb)
     hdr.dout_xfer_len = rresp->request_len;
     hdr.dout_xferp = (uintptr_t) rresp->request;
 
-    hdr.din_xfer_len = rresp->max_response_len;
+    hdr.din_xfer_len = rresp->max_response_l;
     hdr.din_xferp = (uintptr_t) rresp->response;
 
     hdr.timeout = DEF_TIMEOUT_MS;
@@ -407,15 +408,15 @@ send_req_lin_bsg(int fd, smp_req_resp * rresp, int vb)
         return -1;
     }
     res = hdr.din_xfer_len - hdr.din_resid;
-    rresp->act_response_len = res;
-    /* was: rresp->act_response_len = -1; */
+    rresp->act_response_l = res;
+    /* was: rresp->act_response_l = -1; */
     if (vb > 1) {
         qDebug("%s: driver_status=%u, transport_status=%u", __func__, hdr.driver_status, hdr.transport_status);
         qDebug("    device_status=%u, duration=%u, info=%u", hdr.device_status, hdr.duration, hdr.info);
         qDebug("    din_resid=%d, dout_resid=%d", hdr.din_resid, hdr.dout_resid);
-        qDebug("  smp_req_resp::max_response_len=%d act_response_len=%d", rresp->max_response_len, res);
+        qDebug("  smp_req_resp::max_response_l=%d act_response_l=%d", rresp->max_response_l, res);
         qDebug("  response (din_resid might exclude CRC):");
-        hex2stdout((const char *)rresp->response, (res > 0) ? res : (int)hdr.din_xfer_len, 1);
+        hex2stdout(rresp->response, (res > 0) ? res : (int)hdr.din_xfer_len, 1);
     }
     if (hdr.driver_status)
         rresp->transport_err = hdr.driver_status;
@@ -454,7 +455,7 @@ issueMptCommand(int fd, int ioc_num, mpiIoctlBlk_t *mpiBlkPtr)
 
 /* Part of interface to upper level. */
 static int
-send_req_mpt(int fd, int64_t target_sa, smp_req_resp * rresp, int vb)
+send_req_mpt(int fd, int subvalue, int64_t target_sa, smp_req_resp * rresp, int vb)
 {
     mpiIoctlBlk_t * mpiBlkPtr = NULL;
     pSmpPassthroughRequest_t smpReq;
@@ -486,7 +487,7 @@ send_req_mpt(int fd, int64_t target_sa, smp_req_resp * rresp, int vb)
     /* send smp request */
     mpiBlkPtr->dataOutSize = rresp->request_len - 4;
     mpiBlkPtr->dataOutBufPtr = (char *)rresp->request;
-    mpiBlkPtr->dataInSize = rresp->max_response_len + 4;
+    mpiBlkPtr->dataInSize = rresp->max_response_l + 4;
     mpiBlkPtr->dataInBufPtr = (char *)malloc(mpiBlkPtr->dataInSize);
     if(mpiBlkPtr->dataInBufPtr == NULL)
         goto err_out;
@@ -505,7 +506,7 @@ send_req_mpt(int fd, int64_t target_sa, smp_req_resp * rresp, int vb)
     smpReq->Function = MPI_FUNCTION_SMP_PASSTHROUGH;
     memcpy(&smpReq->SASAddress, &target_sa, 8);
 
-    status = issueMptCommand(fd, 0, mpiBlkPtr);
+    status = issueMptCommand(fd, subvalue, mpiBlkPtr);
 
     if (status != 0) {
         qDebug("ioctl failed");
@@ -573,8 +574,8 @@ send_req_mpt(int fd, int64_t target_sa, smp_req_resp * rresp, int vb)
     } else
         ret = 0;
 
-    memcpy(rresp->response, mpiBlkPtr->dataInBufPtr, rresp->max_response_len);
-    rresp->act_response_len = -1;
+    memcpy(rresp->response, mpiBlkPtr->dataInBufPtr, rresp->max_response_l);
+    rresp->act_response_l = -1;
 
 err_out:
     if (mpiBlkPtr) {
@@ -595,7 +596,7 @@ smp_send_req(const smp_target_obj * tobj, smp_req_resp * rresp, int vb)
     if (I_SGV4 == tobj->selector)
         return send_req_lin_bsg(tobj->fd, rresp, vb);
     else if (I_MPT == tobj->selector)
-        return send_req_mpt(tobj->fd, tobj->sas_addr64, rresp, vb);
+        return send_req_mpt(tobj->fd, tobj->subvalue, tobj->sas_addr64, rresp, vb);
     else if (I_SGV4_MPI == tobj->selector)
         return send_req_mpi3mr_bsg(tobj->fd, tobj->subvalue, tobj->sas_addr64, rresp, vb);
     else {
@@ -655,10 +656,11 @@ get_num_phys(smp_target_obj * top, uint8_t * rp, bool * t2t_routingp, int vb)
     memset(&smp_rr, 0, sizeof(smp_rr));
     smp_rr.request_len = sizeof(smp_req);
     if (I_SGV4_MPI == top->selector) {
+        smp_rr.mpi3mr_function = MPI3_FUNCTION_SMP_PASSTHROUGH;
         smp_rr.request_len -= 4;  // exclude CRC field on path-throughs
     }
     smp_rr.request = smp_req;
-    smp_rr.max_response_len = SMP_FN_REPORT_GENERAL_RESP_LEN;
+    smp_rr.max_response_l = SMP_FN_REPORT_GENERAL_RESP_LEN;
     smp_rr.response = rp;
     res = smp_send_req(top, &smp_rr, vb);
 
@@ -670,7 +672,7 @@ get_num_phys(smp_target_obj * top, uint8_t * rp, bool * t2t_routingp, int vb)
         qDebug("RG smp_send_req transport_error=%d", smp_rr.transport_err);
         return -1;
     }
-    act_resplen = smp_rr.act_response_len;
+    act_resplen = smp_rr.act_response_l;
     if ((act_resplen >= 0) && (act_resplen < 4)) {
         qDebug("RG response too short, len=%d", act_resplen);
         return -4 - SMP_LIB_CAT_MALFORMED;
@@ -741,10 +743,11 @@ do_discover(smp_target_obj * top, int disc_phy_id, uint8_t * resp, int max_resp_
     memset(&smp_rr, 0, sizeof(smp_rr));
     smp_rr.request_len = sizeof(smp_req);
     if (I_SGV4_MPI == top->selector) {
+        smp_rr.mpi3mr_function = MPI3_FUNCTION_SMP_PASSTHROUGH;
         smp_rr.request_len -= 4;  // exclude CRC field on path-throughs
     }
     smp_rr.request = smp_req;
-    smp_rr.max_response_len = max_resp_len;
+    smp_rr.max_response_l = max_resp_len;
     smp_rr.response = resp;
     res = smp_send_req(top, &smp_rr, vb);
 
@@ -756,7 +759,7 @@ do_discover(smp_target_obj * top, int disc_phy_id, uint8_t * resp, int max_resp_
         qDebug("smp_send_req transport_error=%d", smp_rr.transport_err);
         return -1;
     }
-    act_resplen = smp_rr.act_response_len;
+    act_resplen = smp_rr.act_response_l;
     if ((act_resplen >= 0) && (act_resplen < 4)) {
         qDebug("response too short, len=%d", act_resplen);
         return -4 - SMP_LIB_CAT_MALFORMED;
@@ -1070,7 +1073,7 @@ open_mpt_device(QString dev_name, int vb)
 }
 
 int
-smp_initiator_open(QString device_name, IntfEnum sel, smp_target_obj * tobj, int vb)
+smp_initiator_open(QString device_name, int subvalue, IntfEnum sel, smp_target_obj * tobj, int vb)
 {
     int res = 0;
     tobj->opened = 0;
@@ -1096,6 +1099,7 @@ smp_initiator_open(QString device_name, IntfEnum sel, smp_target_obj * tobj, int
     }
 
     tobj->device_name = device_name;
+    tobj->subvalue = subvalue;
     tobj->selector = sel;
     tobj->fd = res;
     tobj->opened = 1;
@@ -1166,7 +1170,8 @@ smp_discover(int vb)
             qDebug() << "----> exploring " << device_name;
         }
 
-        res = smp_initiator_open(device_name, I_SGV4, &tobj, vb);
+        // Do not assign the IOC number due to issuing command directly to the expander
+        res = smp_initiator_open(device_name, 0, I_SGV4, &tobj, vb);
         if (res < 0) {
             continue;
         }
@@ -1210,7 +1215,8 @@ mpt_discover(int vb)
             qDebug() << "----> exploring " << device_name;
         }
 
-        res = smp_initiator_open(device_name, I_MPT, &tobj, vb);
+        // assign the IOC number for multiple adapters case
+        res = smp_initiator_open(device_name, k, I_MPT, &tobj, vb);
         if (res < 0) {
             continue;
         }
@@ -1332,7 +1338,8 @@ slot_discover(int vb)
             qDebug() << "----> exploring " << device_name;
         }
 
-        res = smp_initiator_open(device_name, I_SGV4, &tobj, vb);
+        // Do not assign the IOC number due to issuing command directly to the expander
+        res = smp_initiator_open(device_name, 0, I_SGV4, &tobj, vb);
         if (res < 0) {
             continue;
         }
@@ -1383,10 +1390,11 @@ phy_control(smp_target_obj * top, int phy_id, bool disable, int vb)
     memset(&smp_rr, 0, sizeof(smp_rr));
     smp_rr.request_len = sizeof(smp_req);
     if (I_SGV4_MPI == top->selector) {
+        smp_rr.mpi3mr_function = MPI3_FUNCTION_SMP_PASSTHROUGH;
         smp_rr.request_len -= 4;  // exclude CRC field on path-throughs
     }
     smp_rr.request = smp_req;
-    smp_rr.max_response_len = sizeof(smp_resp);
+    smp_rr.max_response_l = sizeof(smp_resp);
     smp_rr.response = smp_resp;
     res = smp_send_req(top, &smp_rr, vb);
 

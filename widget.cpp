@@ -258,7 +258,7 @@ Widget::Widget(QWidget *parent)
     gCombo = ui->cbxSlot;
     gText = ui->textBrowser;
 
-    ui->radDiscover->hide();    // temporarily hide for release
+    ///ui->radDiscover->hide();    // temporarily hide for release
 
     appendMessage("Here lists the messages:");
     filloutCanvas();
@@ -357,12 +357,11 @@ int Widget::phySetDisabled(bool disable)
                     // the expander is to be opened for the 1st selected slot
                     if (0 == tobj.opened) {
                         IntfEnum sel = hba9500 ? I_SGV4 : I_SGV4_MPI;
-                        int res = smp_initiator_open(gControllers.bsgPath(k), sel, &tobj, verbose);
+                        // assign the IOC number for multiple adapters case
+                        int res = smp_initiator_open(gControllers.bsgPath(k), gControllers.subvalue(k), sel, &tobj, verbose);
                         if (res < 0) {
                             break;
                         }
-                        // assign the IOC number for multiple adapters case
-                        tobj.subvalue = gControllers.subvalue(k);
                         // signal Delay after function return
                         ret = 1;
                     }

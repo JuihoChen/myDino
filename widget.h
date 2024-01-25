@@ -44,6 +44,7 @@ private:
     void clrSlot(int sl);
     void setSlot(QString dir_name, QString device, int sl);
 
+private:
     _ST_SLOTINFO SlotInfo[NSLOT];
     int myCount;
 };

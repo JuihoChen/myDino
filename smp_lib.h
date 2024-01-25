@@ -97,7 +97,6 @@ typedef enum {
 typedef struct _smp_target_obj {
     QString device_name;
     int subvalue;               /* adapter number (opt) */
-    //unsigned char sas_addr[8];  /* target SMP (opt) */
     uint64_t sas_addr64;        /* target SMP (opt) */
     IntfEnum selector;
     int opened;
@@ -111,22 +110,23 @@ typedef struct _smp_target_obj {
 typedef struct _smp_req_resp {
     int request_len;            /* [i] in bytes, includes space for 4 byte CRC */
     unsigned char * request;    /* [*i], includes space for CRC */
-    int max_response_len;       /* [i] in bytes, includes space for CRC */
+    int max_response_l;         /* [i] in bytes, includes space for CRC */
     unsigned char * response;   /* [*o] */
-    int act_response_len;       /* [o] -1 implies don't know */
+    int act_response_l;         /* [o] -1 implies don't know */
     int transport_err;          /* [o] 0 implies no error */
+    unsigned char mpi3mr_function;
 } smp_req_resp;
 
 /* Open device_name and if successful places context information in the object pointed
  * to by tobj . Returns 0 on success, else -1 . */
-int smp_initiator_open(QString device_name, IntfEnum sel, smp_target_obj * tobj, int verbose);
+int smp_initiator_open(QString device_name, int subvalue, IntfEnum sel, smp_target_obj * tobj, int verbose);
 /* Closes the context to the SMP target referred to by tobj. Returns 0
  * on success, else -1 . */
 int smp_initiator_close(smp_target_obj * tobj);
 /* The difference is the type of the first of
  * argument: uint8_t instead of char. The name of the argument is changed
  * to b_str to stress it is a pointer to the start of a binary string. */
-void hex2stdout(const char* str, int len, int no_ascii);
+void hex2stdout(void * str, int len, int no_ascii);
 int do_multiple(smp_target_obj * top, int verbose);
 
 #ifdef __cplusplus
