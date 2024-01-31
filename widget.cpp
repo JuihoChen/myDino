@@ -173,20 +173,20 @@ void ExpanderFunc::setDiscoverResp(QString path, int subvalue, uint64_t ull, uin
         const char* cp = "";
         switch(negot) {
         case 8:
-                cp = "1.5";
-                break;
+            cp = "1.5";
+            break;
         case 9:
-                cp = "3";
-                break;
+            cp = "3";
+            break;
         case 0xa:
-                cp = "6";
-                break;
+            cp = "6";
+            break;
         case 0xb:
-                cp = "12";
-                break;
+            cp = "12";
+            break;
         case 0xc:
-                cp = "22.5";
-                break;
+            cp = "22.5";
+            break;
         }
         QString title = GboxInfo[el].gbox->title();
         GboxInfo[el].gbox->setTitle(
@@ -247,6 +247,7 @@ Widget::Widget(QWidget *parent)
     connect(ui->btnRefresh, &QPushButton::clicked, this, &Widget::btnRefreshClicked);
     connect(ui->btnSmpDoit, &QPushButton::clicked, this, &Widget::btnSmpDoitClicked);
     connect(ui->btnClearTB, &QPushButton::clicked, this, &Widget::btnClearTBClicked);
+    connect(ui->tabWidget, &QTabWidget::currentChanged, this, &Widget::tabSelected);
 
     // Configure for systray icon
     QIcon icon = QIcon(":/arrows.png");
@@ -320,6 +321,19 @@ void Widget::btnSmpDoitClicked()
         refreshSlots();
     }
 #endif
+}
+
+void Widget::tabSelected()
+{
+    if (ui->tabWidget->currentIndex() == 2) {
+        ui->textInfo->clear();
+        if (hba9500) {
+            ui->textInfo->append("HBA is 9500");
+            return;
+        }
+        mpi3mr_iocfacts(verbose);
+        ui->textInfo->append(print_iocfacts());
+    }
 }
 
 void Widget::filloutCanvas()

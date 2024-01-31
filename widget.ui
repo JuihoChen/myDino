@@ -127,6 +127,24 @@
      <string>SG3</string>
     </attribute>
    </widget>
+   <widget class="QWidget" name="tab_info">
+    <attribute name="title">
+     <string>Info</string>
+    </attribute>
+    <widget class="QTextEdit" name="textInfo">
+     <property name="geometry">
+      <rect>
+       <x>0</x>
+       <y>0</y>
+       <width>851</width>
+       <height>101</height>
+      </rect>
+     </property>
+     <property name="frameShadow">
+      <enum>QFrame::Plain</enum>
+     </property>
+    </widget>
+   </widget>
   </widget>
   <widget class="QGroupBox" name="groupBox_0">
    <property name="geometry">

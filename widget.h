@@ -37,12 +37,20 @@ public:
     bool slotVacant(int sl) { return SlotInfo[sl].d_name.isEmpty(); }
     int count() { return myCount; }
 
-    QCheckBox *& cbSlot(int sl) { return SlotInfo[sl].cb_slot; }
+    QCheckBox *& cbSlot(int sl) { return SlotInfo[valIndex(sl)].cb_slot; }
     int phyId(int sl) { return SlotInfo[sl].discover_resp[9]; }
 
 private:
     void clrSlot(int sl);
     void setSlot(QString dir_name, QString device, int sl);
+    int valIndex(int sl) {
+        if ((unsigned)sl < NSLOT)
+            return sl;
+        else {
+            qDebug("Incorrect device slot numbering: %d", sl);
+            return 0;
+        }
+    }
 
 private:
     _ST_SLOTINFO SlotInfo[NSLOT];
@@ -95,6 +103,7 @@ private slots:
     void btnRefreshClicked();
     void btnClearTBClicked();
     void btnSmpDoitClicked();
+    void tabSelected();
 
 private:
     void filloutCanvas();

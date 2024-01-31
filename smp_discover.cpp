@@ -18,7 +18,7 @@
 #endif
 #include "smp_mptctl_glue.h"
 #include "mptctl.h"
-#include "mpi30_transport.h"
+#include "mpi30/mpi30_transport.h"
 
 #include "widget.h"
 #include "smp_lib.h"
@@ -1100,6 +1100,7 @@ smp_initiator_open(QString device_name, int subvalue, IntfEnum sel, smp_target_o
 
     tobj->device_name = device_name;
     tobj->subvalue = subvalue;
+    tobj->sas_addr64 = 0;
     tobj->selector = sel;
     tobj->fd = res;
     tobj->opened = 1;
