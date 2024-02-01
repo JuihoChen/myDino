@@ -1,3 +1,5 @@
+#include <QFile>
+#include <QMessageBox>
 #include <QVBoxLayout>
 #include <QSystemTrayIcon>
 #include <QTimer>
@@ -29,6 +31,10 @@ void DeviceFunc::clear()
 
 void DeviceFunc::clrSlot(int sl)
 {
+    // validate the index passed
+    sl = valiIndex(sl);
+
+    // clear slot stuff
     SlotInfo[sl].cb_slot->setText(QString("Slot %1").arg(sl+1));
     SlotInfo[sl].cb_slot->setStyleSheet("QCheckBox:enabled{color: black;} QCheckBox:disabled{color: grey;}");
     SlotInfo[sl].cb_slot->setDisabled(true);
@@ -37,6 +43,9 @@ void DeviceFunc::clrSlot(int sl)
     SlotInfo[sl].wwid.clear();
     SlotInfo[sl].block.clear();
     SlotInfo[sl].resp_len = 0;
+
+    // decrement the slot count
+    myCount--;
 }
 
 void DeviceFunc::setSlot(QString dir_name, QString device, int sl)
@@ -88,7 +97,6 @@ void DeviceFunc::setDiscoverResp(int dsn, uchar * src, int len)
                 // SCSI driver lags refreshing device info.
                 if (false == slotVacant(sl)) {
                     clrSlot(sl);
-                    myCount--;
                 }
                 QString title = SlotInfo[sl].cb_slot->text();
                 SlotInfo[sl].cb_slot->setText(title.append(" (phy off)"));
@@ -236,6 +244,10 @@ Widget::Widget(QWidget *parent)
     for (int i = 0; i < NSLOT; i++) {
         gDevices.cbSlot(i) = _slot[i];
     }
+    // QWidget: Must construct a QApplication before a QWidget
+    // TODO: Create a method to make the allocated Checkbox to be pointed by the dummy slot
+    //QCheckBox *dummy = new QCheckBox;
+    //gDevices.cbSlot(NSLOT) = dummy;
 
     // Setup Groubox 0-3 to be globally accessed
     gControllers.gbThe(0) = ui->groupBox_0;
@@ -243,8 +255,10 @@ Widget::Widget(QWidget *parent)
     gControllers.gbThe(2) = ui->groupBox_2;
     gControllers.gbThe(3) = ui->groupBox_3;
 
+    // Connect Widget signals to the related slots
     connect(ui->cbxSlot, &QComboBox::currentIndexChanged, this, &Widget::cbxSlotIndexChanged);
     connect(ui->btnRefresh, &QPushButton::clicked, this, &Widget::btnRefreshClicked);
+    connect(ui->btnListSdx, &QPushButton::clicked, this, &Widget::btnListSdxClicked);
     connect(ui->btnSmpDoit, &QPushButton::clicked, this, &Widget::btnSmpDoitClicked);
     connect(ui->btnClearTB, &QPushButton::clicked, this, &Widget::btnClearTBClicked);
     connect(ui->tabWidget, &QTabWidget::currentChanged, this, &Widget::tabSelected);
@@ -256,10 +270,11 @@ Widget::Widget(QWidget *parent)
     trayIcon->show();
     setWindowIcon(icon);
 
+    // Init global ui controls handy for manipulation
     gCombo = ui->cbxSlot;
     gText = ui->textBrowser;
 
-    ///ui->radDiscover->hide();    // temporarily hide for release
+    ui->radDiscover->hide();    // temporarily hide for release
 
     appendMessage("Here lists the messages:");
     filloutCanvas();
@@ -285,6 +300,61 @@ void Widget::cbxSlotIndexChanged(int index)
 void Widget::btnRefreshClicked()
 {
     refreshSlots();
+}
+
+void Widget::btnListSdxClicked()
+{
+    #define SDX_LIST_FILE "Dino_sdx_list.txt"
+
+    QMessageBox *msgBox = new QMessageBox(this);
+    msgBox->setIconPixmap(QPixmap(":/listsdx_48.png"));
+    msgBox->setText("SDx Listing");
+    msgBox->setWindowModality(Qt::NonModal);
+    msgBox->setInformativeText("Please check file: " SDX_LIST_FILE);
+    msgBox->setStandardButtons(QMessageBox::Ok);
+
+    QFile file(SDX_LIST_FILE);
+    if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+
+        // We're going to streaming text to the file
+        QTextStream stream(&file);
+
+        // loop through the expanders discovered
+        int k, i;
+        for (k = 0; k < 4; ++k) {
+            stream << "Expander " << k << Qt::endl;
+            if (false == gControllers.bsgPath(k).isEmpty()) {
+                // bool value to determine if a colon to follow
+                bool listed = false;
+                // format 1: loop through the slots numbered
+                for (i = k*28; i < (k+1)*28; ++i) {
+                    // check if the slot is occupied?
+                    if (false == gDevices.slotVacant(i)) {
+                        if (listed) {
+                            stream << ":";
+                        }
+                        stream << "/dev/" << gDevices.block(i);
+                        listed = true;
+                    }
+                }
+                if (listed) {
+                    stream << Qt::endl;
+                }
+                // format 2: loop through the slots numbered
+                for (i = k*28; i < (k+1)*28; ++i) {
+                    // check if the slot is occupied?
+                    if (false == gDevices.slotVacant(i)) {
+                        stream << "/dev/" << gDevices.block(i) << Qt::endl;
+                    }
+                }
+            }
+        }
+
+        // Close the output file
+        file.close();
+    }
+
+    msgBox->exec();
 }
 
 void Widget::btnClearTBClicked()
@@ -358,14 +428,14 @@ int Widget::phySetDisabled(bool disable)
     int k, i, ret = 0;
 
     // loop through the expanders discovered
-    for (k = i = 0; k < 4; ++k) {
+    for (k = 0; k < 4; ++k) {
         if (false == gControllers.bsgPath(k).isEmpty()) {
             if (verbose) {
                 qDebug() << "----> phy controlling " << gControllers.bsgPath(k);
             }
             tobj.opened = 0;
             // loop through the slots listed
-            for ( ; i < (k+1)*28; ++i) {
+            for (i = k*28; i < (k+1)*28; ++i) {
                 // check if the slot is selected or not?
                 if (gDevices.cbSlot(i)->isChecked()) {
                     // the expander is to be opened for the 1st selected slot
@@ -380,7 +450,7 @@ int Widget::phySetDisabled(bool disable)
                         ret = 1;
                     }
                     // check if a resonable phy id (4 - 31)
-                    int phy_id = gDevices.phyId(i);
+                    int phy_id = gDevices.slotPhyId(i);
                     if (phy_id > 3 && phy_id < 32) {
                         // assign sas address for path-through
                         tobj.sas_addr64 = gControllers.wwid64(k);

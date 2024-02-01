@@ -1794,6 +1794,23 @@ li.checked::marker { content: &quot;\2612&quot;; }
      <normaloff>.</normaloff>.</iconset>
    </property>
   </widget>
+  <widget class="QPushButton" name="btnListSdx">
+   <property name="geometry">
+    <rect>
+     <x>880</x>
+     <y>100</y>
+     <width>100</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string> SDx list</string>
+   </property>
+   <property name="icon">
+    <iconset resource="systray.qrc">
+     <normaloff>:/listsdx_48.png</normaloff>:/listsdx_48.png</iconset>
+   </property>
+  </widget>
  </widget>
  <resources>
   <include location="systray.qrc"/>

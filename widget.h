@@ -34,25 +34,27 @@ public:
     void setSlot(QString dir_name, QString device, QString enclosure_device_name);
     void setDiscoverResp(int dsn, uchar * src, int len);
     void setSlotLabel(int sl);
-    bool slotVacant(int sl) { return SlotInfo[sl].d_name.isEmpty(); }
+    bool slotVacant(int sl) { return (sl == valiIndex(sl)) ? SlotInfo[sl].d_name.isEmpty() : false; }
     int count() { return myCount; }
 
-    QCheckBox *& cbSlot(int sl) { return SlotInfo[valIndex(sl)].cb_slot; }
-    int phyId(int sl) { return SlotInfo[sl].discover_resp[9]; }
+    QCheckBox *& cbSlot(int sl) { return (sl == valiIndex(sl)) ? SlotInfo[sl].cb_slot : dummySlot.cb_slot; }
+    const QString& block(int sl) { return (sl == valiIndex(sl)) ? SlotInfo[sl].block : dummySlot.block; }
+    int slotPhyId(int sl) { return (sl == valiIndex(sl) && SlotInfo[sl].resp_len > 9) ? SlotInfo[sl].discover_resp[9] : -1; }
 
 private:
     void clrSlot(int sl);
     void setSlot(QString dir_name, QString device, int sl);
-    int valIndex(int sl) {
+    int valiIndex(int sl) {
         if ((unsigned)sl < NSLOT)
             return sl;
         else {
-            qDebug("Incorrect device slot numbering: %d", sl);
+            qDebug("%s: incorrect device slot indexing: %d", __func__, sl);
             return 0;
         }
     }
 
 private:
+    _ST_SLOTINFO dummySlot = { .cb_slot = nullptr, .d_name = "", .resp_len = 0 };
     _ST_SLOTINFO SlotInfo[NSLOT];
     int myCount;
 };
@@ -101,6 +103,7 @@ public:
 private slots:
     void cbxSlotIndexChanged(int index);
     void btnRefreshClicked();
+    void btnListSdxClicked();
     void btnClearTBClicked();
     void btnSmpDoitClicked();
     void tabSelected();
