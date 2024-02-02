@@ -32,25 +32,29 @@ void DeviceFunc::clear()
 void DeviceFunc::clrSlot(int sl)
 {
     // validate the index passed
-    sl = valiIndex(sl);
+    if (sl == valiIndex(sl)) {
 
-    // clear slot stuff
-    SlotInfo[sl].cb_slot->setText(QString("Slot %1").arg(sl+1));
-    SlotInfo[sl].cb_slot->setStyleSheet("QCheckBox:enabled{color: black;} QCheckBox:disabled{color: grey;}");
-    SlotInfo[sl].cb_slot->setDisabled(true);
-    SlotInfo[sl].cb_slot->setCheckState(Qt::CheckState::Unchecked);
-    SlotInfo[sl].d_name.clear();
-    SlotInfo[sl].wwid.clear();
-    SlotInfo[sl].block.clear();
-    SlotInfo[sl].resp_len = 0;
+        // clear slot stuff
+        SlotInfo[sl].cb_slot->setText(QString("Slot %1").arg(sl+1));
+        SlotInfo[sl].cb_slot->setStyleSheet("QCheckBox:enabled{color: black;} QCheckBox:disabled{color: grey;}");
+        SlotInfo[sl].cb_slot->setDisabled(true);
+        SlotInfo[sl].cb_slot->setCheckState(Qt::CheckState::Unchecked);
+        SlotInfo[sl].d_name.clear();
+        SlotInfo[sl].wwid.clear();
+        SlotInfo[sl].block.clear();
+        SlotInfo[sl].resp_len = 0;
 
-    // decrement the slot count
-    myCount--;
+        // decrement the slot count
+        myCount--;
+    }
 }
 
 void DeviceFunc::setSlot(QString dir_name, QString device, int sl)
 {
-    if ((unsigned)sl < NSLOT) {
+    // validate the index passed
+    if (sl == valiIndex(sl)) {
+
+        // Set slot occupied by something
         SlotInfo[sl].d_name = device;
 
         // Get wwid of this device
@@ -74,11 +78,11 @@ void DeviceFunc::setSlot(QString dir_name, QString device, QString expander, uin
     int sl = compute_device_index(device.toStdString().c_str(), expander.toStdString().c_str());
 
     // the device should be within this expander's domain
-    if (sl <= 0 || sl > 28) {
+    if (sl <= 0 || sl > NSLOT_PEREXP) {
         qDebug() << "Device [" << device << "] setting error!";
         return;
     }
-    sl = (WWID_TO_INDEX(wwid) + 1) * 28 - sl;
+    sl = (WWID_TO_INDEX(wwid) + 1) * NSLOT_PEREXP - sl;
     setSlot(dir_name, device, sl);
 }
 
@@ -89,8 +93,11 @@ void DeviceFunc::setSlot(QString dir_name, QString device, QString enclosure_dev
 
 void DeviceFunc::setDiscoverResp(int dsn, uchar * src, int len)
 {
-    if (dsn > 0 && dsn <= NSLOT) {
-        int sl = dsn - 1;
+    int sl = dsn - 1;
+    // validate the converted index
+    if (sl == valiIndex(sl)) {
+
+        // check NEGOTIATED LOGICAL LINK RATE
         if (len > 13) {
             int negot = src[13] & 0xf;
             if (negot == 1) {
@@ -114,6 +121,7 @@ void DeviceFunc::setDiscoverResp(int dsn, uchar * src, int len)
         memcpy(SlotInfo[sl].discover_resp, src, SMP_FN_DISCOVER_RESP_LEN);
         SlotInfo[sl].resp_len = len;
         SlotInfo[sl].cb_slot->setEnabled(true);
+
     } else {
         qDebug("[%s] incorrect DSN numbering:%d", __func__, dsn);
     }
@@ -121,18 +129,30 @@ void DeviceFunc::setDiscoverResp(int dsn, uchar * src, int len)
 
 void DeviceFunc::setSlotLabel(int sl)
 {
-    if (nullptr != gCombo && false == slotVacant(sl))
-    switch (gCombo->currentIndex())
-    {
-    case 0:
-        SlotInfo[sl].cb_slot->setText(SlotInfo[sl].wwid.right(16));
-        break;
-    case 1:
-        SlotInfo[sl].cb_slot->setText(QString("%1. ").arg(sl+1) + SlotInfo[sl].block);
-        break;
-    default:
-        SlotInfo[sl].cb_slot->setText(QString("%1. ").arg(sl+1) + SlotInfo[sl].d_name);
-        break;
+    if ((nullptr != gCombo) && (sl == valiIndex(sl)) && (false == slotVacant(sl))) {
+
+        switch (gCombo->currentIndex())
+        {
+        case 0:
+            SlotInfo[sl].cb_slot->setText(SlotInfo[sl].wwid.right(16));
+            break;
+        case 1:
+        {
+            QString target;
+            int prot = SlotInfo[sl].discover_resp[15];
+            if ((SlotInfo[sl].resp_len > 15) && (prot & 0xf)) {
+                if (prot & 0x8) target = " (SSP)";
+                if (prot & 0x4) target = " (STP)";
+                if (prot & 0x2) target = " (SMP)";
+                if (prot & 0x1) target = " (SATA)";
+            }
+            SlotInfo[sl].cb_slot->setText(QString("%1. ").arg(sl+1) + SlotInfo[sl].block + target);
+            break;
+        }
+        default:
+            SlotInfo[sl].cb_slot->setText(QString("%1. ").arg(sl+1) + SlotInfo[sl].d_name);
+            break;
+        }
     }
 }
 
@@ -152,13 +172,13 @@ void ExpanderFunc::clear()
 void ExpanderFunc::setController(QString expander, uint64_t wwid)
 {
     // Only expanders 0-3 should be taken care of...
-    int ie = WWID_TO_INDEX(wwid);
+    int el = WWID_TO_INDEX(wwid);
 
-    GboxInfo[ie].d_name = expander;
-    GboxInfo[ie].wwid64 = wwid;
+    GboxInfo[el].d_name = expander;
+    GboxInfo[el].wwid64 = wwid;
 
-    QString title = GboxInfo[ie].gbox->title();
-    GboxInfo[ie].gbox->setTitle(title + QString::asprintf(" [%lX]", wwid));
+    QString title = GboxInfo[el].gbox->title();
+    GboxInfo[el].gbox->setTitle(title + QString::asprintf(" [%lX]", wwid));
 
     myCount++;
 }
@@ -244,10 +264,6 @@ Widget::Widget(QWidget *parent)
     for (int i = 0; i < NSLOT; i++) {
         gDevices.cbSlot(i) = _slot[i];
     }
-    // QWidget: Must construct a QApplication before a QWidget
-    // TODO: Create a method to make the allocated Checkbox to be pointed by the dummy slot
-    //QCheckBox *dummy = new QCheckBox;
-    //gDevices.cbSlot(NSLOT) = dummy;
 
     // Setup Groubox 0-3 to be globally accessed
     gControllers.gbThe(0) = ui->groupBox_0;
@@ -274,7 +290,7 @@ Widget::Widget(QWidget *parent)
     gCombo = ui->cbxSlot;
     gText = ui->textBrowser;
 
-    ui->radDiscover->hide();    // temporarily hide for release
+    ///ui->radDiscover->hide();    // temporarily hide for release
 
     appendMessage("Here lists the messages:");
     filloutCanvas();
@@ -327,7 +343,7 @@ void Widget::btnListSdxClicked()
                 // bool value to determine if a colon to follow
                 bool listed = false;
                 // format 1: loop through the slots numbered
-                for (i = k*28; i < (k+1)*28; ++i) {
+                for (i = k*NSLOT_PEREXP; i < (k+1)*NSLOT_PEREXP; ++i) {
                     // check if the slot is occupied?
                     if (false == gDevices.slotVacant(i)) {
                         if (listed) {
@@ -341,7 +357,7 @@ void Widget::btnListSdxClicked()
                     stream << Qt::endl;
                 }
                 // format 2: loop through the slots numbered
-                for (i = k*28; i < (k+1)*28; ++i) {
+                for (i = k*NSLOT_PEREXP; i < (k+1)*NSLOT_PEREXP; ++i) {
                     // check if the slot is occupied?
                     if (false == gDevices.slotVacant(i)) {
                         stream << "/dev/" << gDevices.block(i) << Qt::endl;
@@ -435,7 +451,7 @@ int Widget::phySetDisabled(bool disable)
             }
             tobj.opened = 0;
             // loop through the slots listed
-            for (i = k*28; i < (k+1)*28; ++i) {
+            for (i = k*NSLOT_PEREXP; i < (k+1)*NSLOT_PEREXP; ++i) {
                 // check if the slot is selected or not?
                 if (gDevices.cbSlot(i)->isChecked()) {
                     // the expander is to be opened for the 1st selected slot

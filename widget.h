@@ -11,8 +11,9 @@ QT_BEGIN_NAMESPACE
 namespace Ui { class Widget; }
 QT_END_NAMESPACE
 
-#define NSLOT   112
-#define NEXPDR  4
+#define NEXPDR 4
+#define NSLOT_PEREXP 28
+#define NSLOT (NEXPDR * NSLOT_PEREXP)
 
 typedef struct ST_SLOTINFO {
     QCheckBox *cb_slot;
@@ -37,8 +38,8 @@ public:
     bool slotVacant(int sl) { return (sl == valiIndex(sl)) ? SlotInfo[sl].d_name.isEmpty() : false; }
     int count() { return myCount; }
 
-    QCheckBox *& cbSlot(int sl) { return (sl == valiIndex(sl)) ? SlotInfo[sl].cb_slot : dummySlot.cb_slot; }
-    const QString& block(int sl) { return (sl == valiIndex(sl)) ? SlotInfo[sl].block : dummySlot.block; }
+    QCheckBox *& cbSlot(int sl) { return (sl == valiIndex(sl)) ? SlotInfo[sl].cb_slot : dummyCbSlot(); }
+    const QString& block(int sl) { return (sl == valiIndex(sl)) ? SlotInfo[sl].block : dummySlotInfo.block; }
     int slotPhyId(int sl) { return (sl == valiIndex(sl) && SlotInfo[sl].resp_len > 9) ? SlotInfo[sl].discover_resp[9] : -1; }
 
 private:
@@ -52,9 +53,17 @@ private:
             return 0;
         }
     }
+    // QWidget: Must construct a QApplication before a QWidget
+    // TODO: Create a method to make the allocated Checkbox to be pointed by the dummy slot
+    QCheckBox *& dummyCbSlot() {
+        if (nullptr == dummySlotInfo.cb_slot) {
+            dummySlotInfo.cb_slot = new QCheckBox;
+        }
+        return dummySlotInfo.cb_slot;
+    }
 
 private:
-    _ST_SLOTINFO dummySlot = { .cb_slot = nullptr, .d_name = "", .resp_len = 0 };
+    _ST_SLOTINFO dummySlotInfo = { .cb_slot = nullptr, .resp_len = 0 };
     _ST_SLOTINFO SlotInfo[NSLOT];
     int myCount;
 };
@@ -80,12 +89,31 @@ public:
     void setDiscoverResp(QString path, int subvalue, uint64_t ull, uint64_t sa, uchar * src, int len);
     int count() { return myCount; }
 
-    QGroupBox *& gbThe(int gr) { return GboxInfo[gr].gbox; }
-    const QString& bsgPath(int gr) { return GboxInfo[gr].bsg_path; }
-    const int subvalue(int gr) { return GboxInfo[gr].ioc_num; }
-    uint64_t wwid64(int gr) { return GboxInfo[gr].wwid64; }
+    QGroupBox *& gbThe(int el) { return (el == valiIndex(el)) ? GboxInfo[el].gbox : dummyGbox(); }
+    const QString& bsgPath(int el) { return (el == valiIndex(el)) ? GboxInfo[el].bsg_path : dummyGboxInfo.bsg_path; }
+    const int subvalue(int el) { return (el == valiIndex(el)) ? GboxInfo[el].ioc_num : dummyGboxInfo.ioc_num; }
+    uint64_t wwid64(int el) { return (el == valiIndex(el)) ? GboxInfo[el].wwid64 : dummyGboxInfo.wwid64; }
 
 private:
+    int valiIndex(int el) {
+        if ((unsigned)el < NEXPDR)
+            return el;
+        else {
+            qDebug("%s: incorrect expander indexing: %d", __func__, el);
+            return 0;
+        }
+    }
+    // QWidget: Must construct a QApplication before a QWidget
+    // TODO: Create a method to make the allocated Checkbox to be pointed by the dummy slot
+    QGroupBox *& dummyGbox() {
+        if (nullptr == dummyGboxInfo.gbox) {
+            dummyGboxInfo.gbox = new QGroupBox;
+        }
+        return dummyGboxInfo.gbox;
+    }
+
+private:
+    _ST_GBOXINFO dummyGboxInfo = { .gbox = nullptr, .ioc_num = -1, .resp_len = 0 };
     _ST_GBOXINFO GboxInfo[NEXPDR];
     int myCount;
 };
