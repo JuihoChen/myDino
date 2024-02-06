@@ -7,6 +7,6 @@ int send_req_mpi3mr_bsg(int fd, int subvalue, int64_t target_sa, smp_req_resp * 
 void mpi3mr_discover(int verbose);
 void mpi3mr_slot_discover(int verbose);
 void mpi3mr_iocfacts(int verbose);
-QString print_iocfacts();
+QString get_infofacts();
 
 #endif // MPI3MR_APP_H

@@ -196,30 +196,20 @@ void ExpanderFunc::setDiscoverResp(QString path, int subvalue, uint64_t ull, uin
     // src area is bigger than discover_resp and zero set before discovery
     memcpy(GboxInfo[el].discover_resp, src, SMP_FN_DISCOVER_RESP_LEN);
     GboxInfo[el].resp_len = len;
-    if (len > 0) {
+
+    const char* cp = "";
+    if (len > 13) {
         int negot = src[13] & 0xf;
-        const char* cp = "";
-        switch(negot) {
-        case 8:
-            cp = "1.5";
-            break;
-        case 9:
-            cp = "3";
-            break;
-        case 0xa:
-            cp = "6";
-            break;
-        case 0xb:
-            cp = "12";
-            break;
-        case 0xc:
-            cp = "22.5";
-            break;
-        }
-        QString title = GboxInfo[el].gbox->title();
-        GboxInfo[el].gbox->setTitle(
-            title.append(QString::asprintf(" [HBA:%lX/%s Gbps]", sa, cp)));
+        if (negot == 0x8) cp = "1.5";
+        if (negot == 0x9) cp = "3";
+        if (negot == 0xa) cp = "6";
+        if (negot == 0xb) cp = "12";
+        if (negot == 0xc) cp = "22.5";
     }
+
+    QString title = GboxInfo[el].gbox->title();
+    GboxInfo[el].gbox->setTitle(
+        title.append(QString::asprintf(" [HBA:%lX/%s Gbps]", sa, cp)));
 }
 
 Widget::Widget(QWidget *parent)
@@ -418,7 +408,7 @@ void Widget::tabSelected()
             return;
         }
         mpi3mr_iocfacts(verbose);
-        ui->textInfo->append(print_iocfacts());
+        ui->textInfo->append(get_infofacts());
     }
 }
 

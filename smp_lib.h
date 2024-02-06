@@ -114,7 +114,7 @@ typedef struct _smp_req_resp {
     unsigned char * response;   /* [*o] */
     int act_response_l;         /* [o] -1 implies don't know */
     int transport_err;          /* [o] 0 implies no error */
-    unsigned char mpi3mr_function;
+    unsigned int mpi3mr_function;
 } smp_req_resp;
 
 /* Open device_name and if successful places context information in the object pointed
