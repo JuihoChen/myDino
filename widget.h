@@ -1,9 +1,10 @@
 #ifndef WIDGET_H
 #define WIDGET_H
 
-#include <QWidget>
 #include <QCheckBox>
+#include <QFileSystemWatcher>
 #include <QGroupBox>
+#include <QWidget>
 
 #include "smp_discover.h"
 
@@ -127,6 +128,7 @@ public:
     ~Widget();
 
     void appendMessage(QString message);
+    void showModified(const QString & path);
 
 private slots:
     void cbxSlotIndexChanged(int index);
@@ -142,6 +144,7 @@ private:
     int phySetDisabled(bool disable);
 
     Ui::Widget *ui;
+    QFileSystemWatcher *m_Watcher;
 };
 
 extern DeviceFunc gDevices;

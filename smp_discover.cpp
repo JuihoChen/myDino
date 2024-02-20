@@ -25,8 +25,8 @@
 #include "mpi3mr_app.h"
 #include "smp_discover.h"
 
-static const char * dev_bsg = "/dev/bsg";
-static const char * dev_mpt = "/dev";
+const char * dev_bsg = "/dev/bsg";
+const char * dev_mpt = "/dev";
 
 static int mptcommand = (int)MPT2COMMAND;
 
@@ -1129,8 +1129,10 @@ smp_initiator_close(smp_target_obj * tobj)
 static int
 bsgdev_scan_select(const struct dirent * s)
 {
-    if (strstr(s->d_name, "expander-") && strchr(s->d_name, ':')) {
-        return 1;
+    if (DT_LNK != s->d_type && DT_DIR != s->d_type) {
+        if (strstr(s->d_name, "expander-") && strchr(s->d_name, ':')) {
+            return 1;
+        }
     }
     /* Still need to filter out "." and ".." */
     return 0;
@@ -1139,7 +1141,7 @@ bsgdev_scan_select(const struct dirent * s)
 static int
 mptdev_scan_select(const struct dirent * s)
 {
-    if (strstr(s->d_name, "mpt3ctl")) {
+    if (DT_LNK != s->d_type && DT_DIR != s->d_type && strstr(s->d_name, "mpt3ctl")) {
         return 1;
     }
     /* Still need to filter out "." and ".." */

@@ -34,8 +34,6 @@ static struct mpi3mr_bsg_packet & mbp = *(struct mpi3mr_bsg_packet *)mbp_pool;
 static char request_m[1024];
 static char reply_m[1024];
 
-static const char * dev_bsg = "/dev/bsg";
-
 class mpi3_request
 {
 public:
@@ -253,7 +251,7 @@ int send_req_mpi3mr_bsg(int fd, int subvalue, int64_t target_sa, smp_req_resp * 
 
 static int mpi3mrdev_scan_select(const struct dirent * s)
 {
-    if (strstr(s->d_name, "mpi3mrctl")) {
+    if (DT_LNK != s->d_type && DT_DIR != s->d_type && strstr(s->d_name, "mpi3mrctl")) {
         return 1;
     }
     /* Still need to filter out "." and ".." */
@@ -503,17 +501,19 @@ QString get_infofacts()
 {
     QString s;
 
-    s.clear();
     for (int i = 0; i < ioc_cnt; i++) {
-        s += QString::asprintf("%s, Driver Version: %s (PCIAddr %02X:%02X:%02X.%02X)\n",
-                adpinfo[i].driver_info.driver_name, adpinfo[i].driver_info.driver_version,
-                adpinfo[i].pci_seg_id, adpinfo[i].pci_bus, adpinfo[i].pci_dev, adpinfo[i].pci_func);
+        s += QString::asprintf("%s (PCIAddr %02X:%02X:%02X.%02X), Driver Version: %s\n",
+                adpinfo[i].driver_info.driver_name,
+                adpinfo[i].pci_seg_id, adpinfo[i].pci_bus, adpinfo[i].pci_dev, adpinfo[i].pci_func,
+                adpinfo[i].driver_info.driver_version);
 
         struct mpi3mr_compimg_ver *fwver = &ioc_facts[i].fw_ver;
-        s += QString::asprintf("HBA (%x) Firmware Version: %d.%d.%d.%d-%05d-%05d\n",
+        struct mpi3_version_struct *mpiver = (struct mpi3_version_struct *) &ioc_facts[i].mpi_version;
+        s += QString::asprintf("HBA (%x), Firmware Version: %d.%d.%d.%d-%05d-%05d, MPI Version: %d.%d\n",
                 ioc_facts[i].product_id,
                 fwver->gen_major, fwver->gen_minor, fwver->ph_major, fwver->ph_minor,
-                fwver->cust_id, fwver->build_num);
+                fwver->cust_id, fwver->build_num,
+                mpiver->major, mpiver->minor);
     }
     return s;
 }

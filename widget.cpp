@@ -121,9 +121,6 @@ void DeviceFunc::setDiscoverResp(int dsn, uchar * src, int len)
         memcpy(SlotInfo[sl].discover_resp, src, SMP_FN_DISCOVER_RESP_LEN);
         SlotInfo[sl].resp_len = len;
         SlotInfo[sl].cb_slot->setEnabled(true);
-
-    } else {
-        qDebug("[%s] incorrect DSN numbering:%d", __func__, dsn);
     }
 }
 
@@ -269,6 +266,12 @@ Widget::Widget(QWidget *parent)
     connect(ui->btnClearTB, &QPushButton::clicked, this, &Widget::btnClearTBClicked);
     connect(ui->tabWidget, &QTabWidget::currentChanged, this, &Widget::tabSelected);
 
+    m_Watcher = new QFileSystemWatcher();
+    if (false == m_Watcher->addPath(dev_bsg)) {
+        qDebug() << "QFileSystemWatcher: failed to add path";
+    }
+    connect(m_Watcher, &QFileSystemWatcher::directoryChanged, this, &Widget::showModified);
+
     // Configure for systray icon
     QIcon icon = QIcon(":/arrows.png");
     QSystemTrayIcon *trayIcon = new QSystemTrayIcon(this);
@@ -289,11 +292,17 @@ Widget::Widget(QWidget *parent)
 Widget::~Widget()
 {
     delete ui;
+    delete m_Watcher;
 }
 
 void Widget::appendMessage(QString message)
 {
     ui->textBrowser->append(message);
+}
+
+void Widget::showModified(const QString & path)
+{
+    appendMessage("Slots information should refresh due to being modified");
 }
 
 void Widget::cbxSlotIndexChanged(int index)

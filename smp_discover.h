@@ -21,6 +21,7 @@
 void smp_discover(int verbose);
 void mpt_discover(int verbose);
 void slot_discover(int verbose);
+int do_multiple(smp_target_obj * top, int verbose);
 int do_multiple_slot(smp_target_obj * top, int verbose);
 void phy_control(smp_target_obj * top, int phy_id, bool disable, int verbose);
 

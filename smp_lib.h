@@ -88,6 +88,9 @@ extern "C" {
 /* ioctl 20 seconds timout */
 #define DEF_TIMEOUT_MS                      20000
 
+extern const char * dev_bsg;
+extern const char * dev_mpt;
+
 typedef enum {
     I_MPT,
     I_SGV4,
@@ -127,7 +130,6 @@ int smp_initiator_close(smp_target_obj * tobj);
  * argument: uint8_t instead of char. The name of the argument is changed
  * to b_str to stress it is a pointer to the start of a binary string. */
 void hex2stdout(void * str, int len, int no_ascii);
-int do_multiple(smp_target_obj * top, int verbose);
 
 #ifdef __cplusplus
 }
