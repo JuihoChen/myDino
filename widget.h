@@ -16,6 +16,18 @@ QT_END_NAMESPACE
 #define NSLOT_PEREXP 28
 #define NSLOT (NEXPDR * NSLOT_PEREXP)
 
+typedef enum {
+    SMP = 0,
+    SG3,
+    FIO,
+    Info
+} ENUM_TAB;
+
+typedef enum {
+    WWID = 0,
+    SDx
+} ENUM_COMBO;
+
 typedef struct ST_SLOTINFO {
     QCheckBox *cb_slot;
     QString d_name;
@@ -128,7 +140,6 @@ public:
     ~Widget();
 
     void appendMessage(QString message);
-    void showModified(const QString & path);
 
 private slots:
     void cbxSlotIndexChanged(int index);
@@ -137,11 +148,15 @@ private slots:
     void btnClearTBClicked();
     void btnSmpDoitClicked();
     void tabSelected();
+    void showModified(const QString & path);
 
 private:
     void filloutCanvas();
     void refreshSlots();
     int phySetDisabled(bool disable);
+    void sdxlist_sit(QTextStream & stream);
+    void sdxlist_wl1(QTextStream & stream);
+    void sdxlist_wl2(QTextStream & stream);
 
     Ui::Widget *ui;
     QFileSystemWatcher *m_Watcher;

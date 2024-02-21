@@ -127,6 +127,53 @@
      <string>SG3</string>
     </attribute>
    </widget>
+   <widget class="QWidget" name="tab_fio">
+    <attribute name="title">
+     <string>FIO</string>
+    </attribute>
+    <widget class="QRadioButton" name="radSit">
+     <property name="geometry">
+      <rect>
+       <x>30</x>
+       <y>10</y>
+       <width>112</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>SIT (Default)</string>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
+     </property>
+    </widget>
+    <widget class="QRadioButton" name="radWl1">
+     <property name="geometry">
+      <rect>
+       <x>30</x>
+       <y>40</y>
+       <width>112</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Workload 1</string>
+     </property>
+    </widget>
+    <widget class="QRadioButton" name="radWl2">
+     <property name="geometry">
+      <rect>
+       <x>30</x>
+       <y>70</y>
+       <width>112</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Workload 2</string>
+     </property>
+    </widget>
+   </widget>
    <widget class="QWidget" name="tab_info">
     <attribute name="title">
      <string>Info</string>

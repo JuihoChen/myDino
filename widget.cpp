@@ -121,6 +121,11 @@ void DeviceFunc::setDiscoverResp(int dsn, uchar * src, int len)
         memcpy(SlotInfo[sl].discover_resp, src, SMP_FN_DISCOVER_RESP_LEN);
         SlotInfo[sl].resp_len = len;
         SlotInfo[sl].cb_slot->setEnabled(true);
+
+        // Re-set label for (SSP, SATA) appendix
+        if ((nullptr != gCombo) && (false == slotVacant(sl)) && (ENUM_COMBO::SDx == gCombo->currentIndex())) {
+            setSlotLabel(sl);
+        }
     }
 }
 
@@ -130,10 +135,10 @@ void DeviceFunc::setSlotLabel(int sl)
 
         switch (gCombo->currentIndex())
         {
-        case 0:
+        case ENUM_COMBO::WWID:
             SlotInfo[sl].cb_slot->setText(SlotInfo[sl].wwid.right(16));
             break;
-        case 1:
+        case ENUM_COMBO::SDx:
         {
             QString target;
             int prot = SlotInfo[sl].discover_resp[15];
@@ -317,53 +322,147 @@ void Widget::btnRefreshClicked()
     refreshSlots();
 }
 
+void Widget::sdxlist_sit(QTextStream & stream)
+{
+    // loop through the expanders discovered
+    for (int k = 0; k < 4; ++k) {
+        stream << "Expander-" << k+1 << Qt::endl;
+        if (false == gControllers.bsgPath(k).isEmpty()) {
+            // bool value to determine if a colon to follow
+            bool listed = false;
+            // format 1: loop through the slots numbered
+            for (int i = k*NSLOT_PEREXP; i < (k+1)*NSLOT_PEREXP; ++i) {
+                // check if the slot is occupied?
+                if (false == gDevices.slotVacant(i)) {
+                    if (listed) {
+                        stream << ":";
+                    }
+                    stream << "/dev/" << gDevices.block(i);
+                    listed = true;
+                }
+            }
+            if (listed) {
+                stream << Qt::endl;
+            }
+            // format 2: loop through the slots numbered
+            for (int i = k*NSLOT_PEREXP; i < (k+1)*NSLOT_PEREXP; ++i) {
+                // check if the slot is occupied?
+                if (false == gDevices.slotVacant(i)) {
+                    stream << "/dev/" << gDevices.block(i) << Qt::endl;
+                }
+            }
+        }
+    }
+}
+
+void Widget::sdxlist_wl1(QTextStream & stream)
+{
+    stream << "[global]"        << Qt::endl
+           << "bs=4K"           << Qt::endl
+           << "#numjobs=1"      << Qt::endl
+           << "iodepth=16"      << Qt::endl
+           << "direct=1"        << Qt::endl
+           << "ioengine=libaio" << Qt::endl
+           << "#group_reporting=0" << Qt::endl
+           << "time_based"      << Qt::endl
+           << "ramp_time=30"    << Qt::endl
+           << "runtime=120"     << Qt::endl
+           << "name=Workload 1" << Qt::endl
+           << "rw=randread"     << Qt::endl << Qt::endl;
+
+    int jobn = 0;
+
+    // loop through the expanders discovered
+    for (int k = 0; k < 4; ++k) {
+        stream << "## Expander-" << k+1 << Qt::endl;
+        if (false == gControllers.bsgPath(k).isEmpty()) {
+            // Workload 1
+            for (int i = k*NSLOT_PEREXP; i < (k+1)*NSLOT_PEREXP; ++i) {
+                // check if this slot is occupied?
+                if (false == gDevices.slotVacant(i)) {
+                    stream << "[job" << ++jobn << "]" << Qt::endl
+                           << "filename=/dev/" << gDevices.block(i) << Qt::endl;
+                    // check if this slot is the target?
+                    if (gDevices.cbSlot(i)->isChecked()) {
+                        stream << "bs=512k" << Qt::endl
+                               << "rw=write" << Qt::endl;
+                    }
+                    stream << Qt::endl;
+                }
+            }
+        }
+    }
+}
+
+void Widget::sdxlist_wl2(QTextStream & stream)
+{
+    stream << "[global]"        << Qt::endl
+           << "bs=4K"           << Qt::endl
+           << "#numjobs=1"      << Qt::endl
+           << "iodepth=16"      << Qt::endl
+           << "direct=1"        << Qt::endl
+           << "ioengine=libaio" << Qt::endl
+           << "#group_reporting=0" << Qt::endl
+           << "time_based"      << Qt::endl
+           << "ramp_time=30"    << Qt::endl
+           << "runtime=120"     << Qt::endl
+           << "name=Workload 1" << Qt::endl
+           << "rw=randread"     << Qt::endl << Qt::endl;
+
+    int jobn = 0;
+
+    // loop through the expanders discovered
+    for (int k = 0; k < 4; ++k) {
+        stream << "## Expander-" << k+1 << Qt::endl;
+        if (false == gControllers.bsgPath(k).isEmpty()) {
+            // Workload 2
+            for (int i = k*NSLOT_PEREXP; i < (k+1)*NSLOT_PEREXP; ++i) {
+                // check if this slot is occupied?
+                if (false == gDevices.slotVacant(i)) {
+                    stream << "[job" << ++jobn << "]" << Qt::endl
+                           << "filename=/dev/" << gDevices.block(i) << Qt::endl;
+                    // check if this slot is the target?
+                    if (gDevices.cbSlot(i)->isChecked()) {
+                        stream << "bs=4k" << Qt::endl
+                               << "rw=randwrite" << Qt::endl;
+                    }
+                    stream << Qt::endl;
+                }
+            }
+        }
+    }
+}
+
 void Widget::btnListSdxClicked()
 {
-    #define SDX_LIST_FILE "Dino_sdx_list.txt"
+    const char * SDX_LIST_FILE[] = { "Dino_sdx_list.txt", "512k_SeqW_4k_RandR.fio", "4k_RandW_4k_RandR.fio" };
+    void (Widget::*do_list[])(QTextStream & stream) = { &Widget::sdxlist_sit, &Widget::sdxlist_wl1, &Widget::sdxlist_wl2 };
+
+    int choice = 0;
+    if (ui->tabWidget->currentIndex() == ENUM_TAB::FIO) {
+        if (ui->radWl1->isChecked()) {
+            choice = 1;
+        }
+        if (ui->radWl2->isChecked()) {
+            choice = 2;
+        }
+    }
 
     QMessageBox *msgBox = new QMessageBox(this);
     msgBox->setIconPixmap(QPixmap(":/listsdx_48.png"));
     msgBox->setText("SDx Listing");
     msgBox->setWindowModality(Qt::NonModal);
-    msgBox->setInformativeText("Please check file: " SDX_LIST_FILE);
+    msgBox->setInformativeText(QString::asprintf("Please check file: %s", SDX_LIST_FILE[choice]));
     msgBox->setStandardButtons(QMessageBox::Ok);
 
-    QFile file(SDX_LIST_FILE);
+    QFile file(SDX_LIST_FILE[choice]);
     if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
 
         // We're going to streaming text to the file
         QTextStream stream(&file);
 
-        // loop through the expanders discovered
-        int k, i;
-        for (k = 0; k < 4; ++k) {
-            stream << "Expander " << k << Qt::endl;
-            if (false == gControllers.bsgPath(k).isEmpty()) {
-                // bool value to determine if a colon to follow
-                bool listed = false;
-                // format 1: loop through the slots numbered
-                for (i = k*NSLOT_PEREXP; i < (k+1)*NSLOT_PEREXP; ++i) {
-                    // check if the slot is occupied?
-                    if (false == gDevices.slotVacant(i)) {
-                        if (listed) {
-                            stream << ":";
-                        }
-                        stream << "/dev/" << gDevices.block(i);
-                        listed = true;
-                    }
-                }
-                if (listed) {
-                    stream << Qt::endl;
-                }
-                // format 2: loop through the slots numbered
-                for (i = k*NSLOT_PEREXP; i < (k+1)*NSLOT_PEREXP; ++i) {
-                    // check if the slot is occupied?
-                    if (false == gDevices.slotVacant(i)) {
-                        stream << "/dev/" << gDevices.block(i) << Qt::endl;
-                    }
-                }
-            }
-        }
+        // Do the listing
+        (this->*do_list[choice])(stream);
 
         // Close the output file
         file.close();
@@ -410,7 +509,12 @@ void Widget::btnSmpDoitClicked()
 
 void Widget::tabSelected()
 {
-    if (ui->tabWidget->currentIndex() == 2) {
+    switch (ui->tabWidget->currentIndex())
+    {
+    case ENUM_TAB::FIO:
+        ui->radSit->setChecked(true);
+        break;
+    case ENUM_TAB::Info:
         ui->textInfo->clear();
         if (hba9500) {
             ui->textInfo->append("HBA is 9500");
@@ -418,6 +522,7 @@ void Widget::tabSelected()
         }
         mpi3mr_iocfacts(verbose);
         ui->textInfo->append(get_infofacts());
+        break;
     }
 }
 
