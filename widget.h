@@ -152,7 +152,6 @@ private slots:
 
 private:
     void filloutCanvas();
-    void refreshSlots();
     int phySetDisabled(bool disable);
     void sdxlist_sit(QTextStream & stream);
     void sdxlist_wl1(QTextStream & stream);

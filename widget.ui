@@ -152,12 +152,12 @@
       <rect>
        <x>30</x>
        <y>40</y>
-       <width>112</width>
+       <width>181</width>
        <height>23</height>
       </rect>
      </property>
      <property name="text">
-      <string>Workload 1</string>
+      <string>Wload 1 (512k_SeqW)</string>
      </property>
     </widget>
     <widget class="QRadioButton" name="radWl2">
@@ -165,12 +165,12 @@
       <rect>
        <x>30</x>
        <y>70</y>
-       <width>112</width>
+       <width>181</width>
        <height>23</height>
       </rect>
      </property>
      <property name="text">
-      <string>Workload 2</string>
+      <string>Wload 2 (4k_RandW)</string>
      </property>
     </widget>
    </widget>

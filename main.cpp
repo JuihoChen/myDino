@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
 
     QApplication a(argc, argv);
     Widget w;
-    w.setWindowTitle("myDino [0.06]");
+    w.setWindowTitle("myDino [0.08]");
     w.show();
 
     return a.exec();

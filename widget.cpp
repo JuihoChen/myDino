@@ -15,8 +15,9 @@
 
 extern int verbose;
 
-static QComboBox *gCombo = nullptr;
-static QTextBrowser *gText = nullptr;
+static QTabWidget * gTab = nullptr;
+static QComboBox * gCombo = nullptr;
+static QTextBrowser * gText = nullptr;
 
 DeviceFunc gDevices;
 ExpanderFunc gControllers;
@@ -120,7 +121,9 @@ void DeviceFunc::setDiscoverResp(int dsn, uchar * src, int len)
         // src area is bigger than discover_resp and zero set before discovery
         memcpy(SlotInfo[sl].discover_resp, src, SMP_FN_DISCOVER_RESP_LEN);
         SlotInfo[sl].resp_len = len;
-        SlotInfo[sl].cb_slot->setEnabled(true);
+        if (nullptr != gTab && ENUM_TAB::FIO != gTab->currentIndex()) {
+            SlotInfo[sl].cb_slot->setEnabled(true);
+        }
 
         // Re-set label for (SSP, SATA) appendix
         if ((nullptr != gCombo) && (false == slotVacant(sl)) && (ENUM_COMBO::SDx == gCombo->currentIndex())) {
@@ -285,6 +288,7 @@ Widget::Widget(QWidget *parent)
     setWindowIcon(icon);
 
     // Init global ui controls handy for manipulation
+    gTab = ui->tabWidget;
     gCombo = ui->cbxSlot;
     gText = ui->textBrowser;
 
@@ -319,7 +323,10 @@ void Widget::cbxSlotIndexChanged(int index)
 
 void Widget::btnRefreshClicked()
 {
-    refreshSlots();
+    appendMessage("Refresh slots information...");
+
+    filloutCanvas();
+    appendMessage(QString::asprintf("Found %d expanders and %d devices", gControllers.count(), gDevices.count()));
 }
 
 void Widget::sdxlist_sit(QTextStream & stream)
@@ -360,7 +367,7 @@ void Widget::sdxlist_wl1(QTextStream & stream)
     stream << "[global]"        << Qt::endl
            << "bs=4K"           << Qt::endl
            << "#numjobs=1"      << Qt::endl
-           << "iodepth=16"      << Qt::endl
+           << "iodepth=8"       << Qt::endl
            << "direct=1"        << Qt::endl
            << "ioengine=libaio" << Qt::endl
            << "#group_reporting=0" << Qt::endl
@@ -399,14 +406,14 @@ void Widget::sdxlist_wl2(QTextStream & stream)
     stream << "[global]"        << Qt::endl
            << "bs=4K"           << Qt::endl
            << "#numjobs=1"      << Qt::endl
-           << "iodepth=16"      << Qt::endl
+           << "iodepth=8"       << Qt::endl
            << "direct=1"        << Qt::endl
            << "ioengine=libaio" << Qt::endl
            << "#group_reporting=0" << Qt::endl
            << "time_based"      << Qt::endl
            << "ramp_time=30"    << Qt::endl
            << "runtime=120"     << Qt::endl
-           << "name=Workload 1" << Qt::endl
+           << "name=Workload 2" << Qt::endl
            << "rw=randread"     << Qt::endl << Qt::endl;
 
     int jobn = 0;
@@ -552,14 +559,6 @@ void Widget::filloutCanvas()
     gControllers.clear();
     list_sdevices(verbose);
     hba9500 ? slot_discover(verbose) : mpi3mr_slot_discover(verbose);
-}
-
-void Widget::refreshSlots()
-{
-    appendMessage("Refresh slots information...");
-
-    filloutCanvas();
-    appendMessage(QString::asprintf("Found %d expanders and %d devices", gControllers.count(), gDevices.count()));
 }
 
 int Widget::phySetDisabled(bool disable)
