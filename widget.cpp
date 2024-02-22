@@ -37,7 +37,7 @@ void DeviceFunc::clrSlot(int sl)
         // clear slot stuff
         SlotInfo[sl].cb_slot->setText(QString("Slot %1").arg(sl+1));
         SlotInfo[sl].cb_slot->setStyleSheet("QCheckBox:enabled{color: black;} QCheckBox:disabled{color: grey;}");
-        SlotInfo[sl].cb_slot->setDisabled(true);
+        SlotInfo[sl].cb_slot->setEnabled(false);
         SlotInfo[sl].cb_slot->setCheckState(Qt::CheckState::Unchecked);
         SlotInfo[sl].d_name.clear();
         SlotInfo[sl].wwid.clear();
@@ -288,7 +288,7 @@ Widget::Widget(QWidget *parent)
     gCombo = ui->cbxSlot;
     gText = ui->textBrowser;
 
-    ///ui->radDiscover->hide();    // temporarily hide for release
+    ui->radDiscover->hide();    // temporarily hide for release
 
     appendMessage("Here lists the messages:");
     filloutCanvas();
@@ -509,16 +509,36 @@ void Widget::btnSmpDoitClicked()
 
 void Widget::tabSelected()
 {
-    switch (ui->tabWidget->currentIndex())
+    static int lastIndex = 0;
+    int currIndex = ui->tabWidget->currentIndex();
+    switch (currIndex)
     {
+    case ENUM_TAB::SMP:
+        if (lastIndex == ENUM_TAB::FIO) {
+            for (int i = 0; i < NSLOT; i++) {
+                if (true == gDevices.slotVacant(i) && gDevices.slotPhyId(i) > 0) {
+                    gDevices.cbSlot(i)->setEnabled(true);
+                }
+            }
+        }
+        // Save it!
+        lastIndex = currIndex;
+        break;
     case ENUM_TAB::FIO:
         ui->radSit->setChecked(true);
+        for (int i = 0; i < NSLOT; i++) {
+            if (true == gDevices.slotVacant(i) && gDevices.slotPhyId(i) > 0) {
+                gDevices.cbSlot(i)->setEnabled(false);
+            }
+        }
+        // Save it!
+        lastIndex = currIndex;
         break;
     case ENUM_TAB::Info:
         ui->textInfo->clear();
         if (hba9500) {
             ui->textInfo->append("HBA is 9500");
-            return;
+            break;
         }
         mpi3mr_iocfacts(verbose);
         ui->textInfo->append(get_infofacts());
