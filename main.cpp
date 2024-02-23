@@ -3,6 +3,12 @@
 
 #include "widget.h"
 
+#if QT_NO_DEBUG
+#define DEBUG_HL ""
+#else
+#define DEBUG_HL " (DEBUG MODE)"
+#endif
+
 int verbose = 0;
 
 static struct option long_options[] = {
@@ -13,7 +19,7 @@ int main(int argc, char *argv[])
 {
     int c;
     while((c = getopt_long(argc, argv, "v", long_options, NULL)) != -1) {
-        switch(c) {
+        switch (c) {
         case 'v':
             ++verbose;
             break;
@@ -22,7 +28,7 @@ int main(int argc, char *argv[])
 
     QApplication a(argc, argv);
     Widget w;
-    w.setWindowTitle("myDino [0.08]");
+    w.setWindowTitle("myDino [0.09]" DEBUG_HL);
     w.show();
 
     return a.exec();

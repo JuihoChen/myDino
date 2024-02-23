@@ -22,15 +22,15 @@ static QTextBrowser * gText = nullptr;
 DeviceFunc gDevices;
 ExpanderFunc gControllers;
 
-void DeviceFunc::clear()
+void DeviceFunc::clear(bool uncheck)
 {
     for (int i = 0; i < NSLOT; i++) {
-        clrSlot(i);
+        clrSlot(i, uncheck);
     }
     myCount = 0;
 }
 
-void DeviceFunc::clrSlot(int sl)
+void DeviceFunc::clrSlot(int sl, bool uncheck)
 {
     // validate the index passed
     if (sl == valiIndex(sl)) {
@@ -39,7 +39,7 @@ void DeviceFunc::clrSlot(int sl)
         SlotInfo[sl].cb_slot->setText(QString("Slot %1").arg(sl+1));
         SlotInfo[sl].cb_slot->setStyleSheet("QCheckBox:enabled{color: black;} QCheckBox:disabled{color: grey;}");
         SlotInfo[sl].cb_slot->setEnabled(false);
-        SlotInfo[sl].cb_slot->setCheckState(Qt::CheckState::Unchecked);
+        if (uncheck) SlotInfo[sl].cb_slot->setCheckState(Qt::CheckState::Unchecked);
         SlotInfo[sl].d_name.clear();
         SlotInfo[sl].wwid.clear();
         SlotInfo[sl].block.clear();
@@ -292,7 +292,7 @@ Widget::Widget(QWidget *parent)
     gCombo = ui->cbxSlot;
     gText = ui->textBrowser;
 
-    ui->radDiscover->hide();    // temporarily hide for release
+    ///ui->radDiscover->hide();    // temporarily hide for release
 
     appendMessage("Here lists the messages:");
     filloutCanvas();
@@ -311,7 +311,10 @@ void Widget::appendMessage(QString message)
 
 void Widget::showModified(const QString & path)
 {
-    appendMessage("Slots information should refresh due to being modified");
+    appendMessage("Slots information refreshed due to being modified");
+
+    // Refreshing ?...
+    filloutCanvas(false);
 }
 
 void Widget::cbxSlotIndexChanged(int index)
@@ -489,29 +492,28 @@ void Widget::btnSmpDoitClicked()
     if (ui->radPhyDisable->isChecked()) {
         appendMessage("Disable phys...");
         if (phySetDisabled(true))
-            delay = 4000;
+            delay = 10;
     }
     else if (ui->radPhyReset->isChecked()) {
         appendMessage("Enable phys...");
         if (phySetDisabled(false))
-            delay = 2500;
+            delay = 10;
     }
     else if (ui->radDiscover->isChecked()) {
         appendMessage("Discover expanders...");
         mpi3mr_discover(verbose);
         return;
     }
-#if 1
-    Q_UNUSED(delay);
-#else
+
     // Run a function with a delay in QT
-    if (delay) {
+    if (delay > 0) {
         QEventLoop loop;
         QTimer::singleShot(delay, &loop, &QEventLoop::quit);
         loop.exec();
-        refreshSlots();
     }
-#endif
+
+    // Refreshing ?...
+    filloutCanvas();
 }
 
 void Widget::tabSelected()
@@ -549,13 +551,17 @@ void Widget::tabSelected()
         }
         mpi3mr_iocfacts(verbose);
         ui->textInfo->append(get_infofacts());
+        // Scroll QTextBrowser to the top
+        QTextCursor cursor = ui->textInfo->textCursor();
+        cursor.setPosition(0);
+        ui->textInfo->setTextCursor(cursor);
         break;
     }
 }
 
-void Widget::filloutCanvas()
+void Widget::filloutCanvas(bool uncheck)
 {
-    gDevices.clear();
+    gDevices.clear(uncheck);
     gControllers.clear();
     list_sdevices(verbose);
     hba9500 ? slot_discover(verbose) : mpi3mr_slot_discover(verbose);

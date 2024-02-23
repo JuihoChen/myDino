@@ -517,7 +517,7 @@ send_req_mpt(int fd, int subvalue, int64_t target_sa, smp_req_resp * rresp, int 
     if ((ioc_stat != MPI_IOCSTATUS_SUCCESS) ||
         (smpReply->SASStatus != MPI_SASSTATUS_SUCCESS)) {
         if (vb) {
-            switch(smpReply->SASStatus) {
+            switch (smpReply->SASStatus) {
             case MPI_SASSTATUS_UNKNOWN_ERROR:
                 qDebug("Unknown SAS (SMP) error");
                 break;
@@ -856,7 +856,7 @@ do_multiple(smp_target_obj * top, int vb)
         }
 
         /* Routing Attribute */
-        switch(rp[44] & 0xf) {
+        switch (rp[44] & 0xf) {
         case 0:
             cp = "D";
             break;
@@ -988,7 +988,7 @@ do_multiple(smp_target_obj * top, int vb)
             os += ")";
         }
         os += "]";
-        switch(negot) {
+        switch (negot) {
         case 8:
             cp = "  1.5 Gbps";
             break;

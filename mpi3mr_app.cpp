@@ -95,7 +95,7 @@ int mpi3_request::response_len(void * mpi_reply)
 {
     int noFunc = rresp->mpi3mr_function;
 
-    switch(noFunc) {
+    switch (noFunc) {
     case MPI3_FUNCTION_IOC_FACTS:
         return ((struct mpi3_ioc_facts_data *)reply_m)->ioc_facts_data_length * 4;
     case MPI3_FUNCTION_SMP_PASSTHROUGH:

@@ -43,7 +43,7 @@ public:
     DeviceFunc() {}
     ~DeviceFunc() {};
 
-    void clear();
+    void clear(bool uncheck);
     void setSlot(QString dir_name, QString device, QString expander, uint64_t wwid);
     void setSlot(QString dir_name, QString device, QString enclosure_device_name);
     void setDiscoverResp(int dsn, uchar * src, int len);
@@ -56,7 +56,7 @@ public:
     int slotPhyId(int sl) { return (sl == valiIndex(sl) && SlotInfo[sl].resp_len > 9) ? SlotInfo[sl].discover_resp[9] : -1; }
 
 private:
-    void clrSlot(int sl);
+    void clrSlot(int sl, bool uncheck = true);
     void setSlot(QString dir_name, QString device, int sl);
     int valiIndex(int sl) {
         if ((unsigned)sl < NSLOT)
@@ -151,7 +151,7 @@ private slots:
     void showModified(const QString & path);
 
 private:
-    void filloutCanvas();
+    void filloutCanvas(bool uncheck = true);
     int phySetDisabled(bool disable);
     void sdxlist_sit(QTextStream & stream);
     void sdxlist_wl1(QTextStream & stream);

@@ -88,9 +88,6 @@ extern "C" {
 /* ioctl 20 seconds timout */
 #define DEF_TIMEOUT_MS                      20000
 
-extern const char * dev_bsg;
-extern const char * dev_mpt;
-
 typedef enum {
     I_MPT,
     I_SGV4,
@@ -119,6 +116,9 @@ typedef struct _smp_req_resp {
     int transport_err;          /* [o] 0 implies no error */
     unsigned int mpi3mr_function;
 } smp_req_resp;
+
+extern const char * dev_bsg;
+extern const char * dev_mpt;
 
 /* Open device_name and if successful places context information in the object pointed
  * to by tobj . Returns 0 on success, else -1 . */
