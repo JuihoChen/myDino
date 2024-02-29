@@ -1,8 +1,10 @@
+#include <QDateTime>
 #include <QFile>
 #include <QMessageBox>
-#include <QVBoxLayout>
+#include <QProcess>
 #include <QSystemTrayIcon>
 #include <QTimer>
+#include <QVBoxLayout>
 
 #include "ui_widget.h"
 #include "widget.h"
@@ -136,8 +138,7 @@ void DeviceFunc::setSlotLabel(int sl)
 {
     if ((nullptr != gCombo) && (sl == valiIndex(sl)) && (false == slotVacant(sl))) {
 
-        switch (gCombo->currentIndex())
-        {
+        switch (gCombo->currentIndex()) {
         case ENUM_COMBO::WWID:
             SlotInfo[sl].cb_slot->setText(SlotInfo[sl].wwid.right(16));
             break;
@@ -227,15 +228,15 @@ Widget::Widget(QWidget *parent)
 
     ui->textBrowser->clear();  // Clear the default ui text
 
-    QVBoxLayout *layout = new QVBoxLayout;
-    layout->addWidget(ui->tabWidget);
-    layout->addWidget(ui->groupBox_0);
-    layout->addWidget(ui->groupBox_1);
-    layout->addWidget(ui->groupBox_2);
-    layout->addWidget(ui->groupBox_3);
-    //layout->addStretch();
-    layout->addWidget(ui->textBrowser);
-    setLayout(layout);
+    m_layout = new QVBoxLayout;
+    m_layout->addWidget(ui->tabWidget);
+    m_layout->addWidget(ui->groupBox_0);
+    m_layout->addWidget(ui->groupBox_1);
+    m_layout->addWidget(ui->groupBox_2);
+    m_layout->addWidget(ui->groupBox_3);
+    //m_layout->addStretch();
+    m_layout->addWidget(ui->textBrowser);
+    setLayout(m_layout);
 
     // Use a temporary QCheckBox array _slot to assign all QCheckbox vector to the global gSlot
     QCheckBox *_slot[NSLOT] = {
@@ -282,9 +283,9 @@ Widget::Widget(QWidget *parent)
 
     // Configure for systray icon
     QIcon icon = QIcon(":/arrows.png");
-    QSystemTrayIcon *trayIcon = new QSystemTrayIcon(this);
-    trayIcon->setIcon(icon);
-    trayIcon->show();
+    m_trayIcon = new QSystemTrayIcon(this);
+    m_trayIcon->setIcon(icon);
+    m_trayIcon->show();
     setWindowIcon(icon);
 
     // Init global ui controls handy for manipulation
@@ -301,6 +302,8 @@ Widget::Widget(QWidget *parent)
 Widget::~Widget()
 {
     delete ui;
+    delete m_layout;
+    delete m_trayIcon;
     delete m_Watcher;
 }
 
@@ -443,6 +446,128 @@ void Widget::sdxlist_wl2(QTextStream & stream)
     }
 }
 
+void Widget::invokeProcess(const QString &program, const QStringList &arguments)
+{
+    qDebug() << program + " " + arguments.join(" ");
+
+    QProcess myProcess(this);
+    myProcess.setProcessChannelMode(QProcess::MergedChannels);
+    myProcess.start(program, arguments);
+
+    // Continue reading the data until EOF reached
+    QByteArray data;
+
+    while (myProcess.waitForReadyRead()) {
+        data.append(myProcess.readAll());
+    }
+    myProcess.waitForFinished();
+
+    // Output the data
+    qDebug() << data.data();
+}
+
+void Widget::autofio_wl1()
+{
+    QMessageBox msgBox(this);
+    msgBox.setIconPixmap(QPixmap(":/listsdx_48.png"));
+    msgBox.setText("Auto FIO (Workload 1)");
+    //msgBox.setInformativeText("Auto FIO (Workload 1)");
+    msgBox.setStandardButtons(QMessageBox::Cancel | QMessageBox::Ok);
+
+    if (QMessageBox::Ok == msgBox.exec()) {
+
+        QCheckBox * cbfd[] = { ui->cb_fd50, ui->cb_fd60, ui->cb_fd70, ui->cb_fd80, ui->cb_fd90, ui->cb_fd100 };
+        QString fd[] = { "50", "60", "70", "80", "90", "100" };
+        for (int l = 0; l < sizeof(cbfd)/sizeof(cbfd[0]); ++l) {
+            cbfd[l]->setEnabled(false);
+        }
+
+        int loops = 0;
+        if (ui->cb_fd100->isChecked()) loops++;
+        if (ui->cb_fd90->isChecked()) loops++;
+        if (ui->cb_fd80->isChecked()) loops++;
+        if (ui->cb_fd70->isChecked()) loops++;
+        if (ui->cb_fd60->isChecked()) loops++;
+        if (ui->cb_fd50->isChecked()) loops++;
+        if (loops == 0) {
+            ui->cb_fd100->setChecked(true);
+            loops = 1;
+        }
+
+        int progress = 0;
+
+        try {
+            // loop through fan duty 50% -> 100%
+            for (int l = 0; l < sizeof(cbfd)/sizeof(cbfd[0]); ++l) {
+
+                // check if this fan duty is to loop
+                if (cbfd[l]->isChecked()) {
+                    appendMessage("ipmitool sets fan duty to " + fd[l] + "%");
+
+                    QString program = "ipmitool";
+                    QStringList arguments;
+
+                    // set this command every AC cycle.
+                    arguments << "raw" << "0x2e" << "0x40" << "0x16" << "0x7d" << "0x00" << "0x01";
+                    invokeProcess(program, arguments);
+
+                    // set pwm duty cycle
+                    arguments.clear();
+                    arguments << "raw" << "0x2e" << "0x44" << "0x16" << "0x7d" << "0x00" << "0xff" << fd[l];
+                    invokeProcess(program, arguments);
+
+                    // loop through the expanders discovered
+                    for (int k = 0; k < 4; ++k) {
+                        appendMessage(QString::asprintf("## Expander-%d", k+1));
+                        if (false == gControllers.bsgPath(k).isEmpty()) {
+                            // Workload 1
+                            for (int i = k*NSLOT_PEREXP; i < (k+1)*NSLOT_PEREXP; ++i) {
+                                // check if this slot is occupied?
+                                if (false == gDevices.slotVacant(i)) {
+                                    QDateTime date(QDateTime::currentDateTime());
+                                    QString time = date.toString("_yyyyMMdd_hhmmss");
+                                    QString fio = "512k_SeqW_" + fd[l] + "_" + gDevices.block(i) + time + ".fio";
+                                    QString out = "512k_SeqW_" + fd[l] + "_" + gDevices.block(i) + time + ".txt";
+                                    QString msg = fio + "  -->  " + out + QString::asprintf(" (%d/%d)", ++progress, loops * gDevices.count());
+                                    appendMessage(msg);
+
+                                    QFile file(fio);
+                                    if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+
+                                        // We're going to streaming text to the file
+                                        QTextStream stream(&file);
+
+                                        // Do the listing
+                                        sdxlist_wl1(stream);
+
+                                        // Close the script file
+                                        file.close();
+
+                                        // Finally, remove the script file
+                                        file.remove();
+                                    } else {
+                                        //appendMessage("FIO script failed to open for write!");
+                                        throw QString("FIO script failed to open for write!");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (QString msg) {
+            appendMessage(msg);
+        }
+
+        for (int l = 0; l < sizeof(cbfd)/sizeof(cbfd[0]); ++l) {
+            cbfd[l]->setEnabled(true);
+        }
+    }
+
+    // Modal QMessageBox greys out the tab page, repaint the tab widget
+    ui->tabWidget->repaint();
+}
+
 void Widget::btnListSdxClicked()
 {
     const char * SDX_LIST_FILE[] = { "Dino_sdx_list.txt", "512k_SeqW_4k_RandR.fio", "4k_RandW_4k_RandR.fio" };
@@ -456,14 +581,17 @@ void Widget::btnListSdxClicked()
         if (ui->radWl2->isChecked()) {
             choice = 2;
         }
+        if (ui->radAf1->isChecked()) {
+            autofio_wl1();
+            return;
+        }
     }
 
-    QMessageBox *msgBox = new QMessageBox(this);
-    msgBox->setIconPixmap(QPixmap(":/listsdx_48.png"));
-    msgBox->setText("SDx Listing");
-    msgBox->setWindowModality(Qt::NonModal);
-    msgBox->setInformativeText(QString::asprintf("Please check file: %s", SDX_LIST_FILE[choice]));
-    msgBox->setStandardButtons(QMessageBox::Ok);
+    QMessageBox msgBox(this);
+    msgBox.setIconPixmap(QPixmap(":/listsdx_48.png"));
+    msgBox.setText("SDx Listing");
+    msgBox.setInformativeText(QString::asprintf("Please check file: %s", SDX_LIST_FILE[choice]));
+    msgBox.setStandardButtons(QMessageBox::Ok);
 
     QFile file(SDX_LIST_FILE[choice]);
     if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
@@ -478,7 +606,10 @@ void Widget::btnListSdxClicked()
         file.close();
     }
 
-    msgBox->exec();
+    msgBox.exec();
+
+    // Modal QMessageBox greys out the tab page, repaint the tab widget
+    ui->tabWidget->repaint();
 }
 
 void Widget::btnClearTBClicked()
@@ -520,8 +651,7 @@ void Widget::tabSelected()
 {
     static int lastIndex = 0;
     int currIndex = ui->tabWidget->currentIndex();
-    switch (currIndex)
-    {
+    switch (currIndex) {
     case ENUM_TAB::SMP:
         if (lastIndex == ENUM_TAB::FIO) {
             for (int i = 0; i < NSLOT; i++) {

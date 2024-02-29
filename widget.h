@@ -4,6 +4,8 @@
 #include <QCheckBox>
 #include <QFileSystemWatcher>
 #include <QGroupBox>
+#include <QSystemTrayIcon>
+#include <QVBoxLayout>
 #include <QWidget>
 
 #include "smp_discover.h"
@@ -29,7 +31,7 @@ typedef enum {
 } ENUM_COMBO;
 
 typedef struct ST_SLOTINFO {
-    QCheckBox *cb_slot;
+    QCheckBox * cb_slot;
     QString d_name;
     QString wwid;
     QString block;
@@ -82,7 +84,7 @@ private:
 };
 
 typedef struct ST_GBOXINFO {
-    QGroupBox *gbox;
+    QGroupBox * gbox;
     QString d_name;
     QString bsg_path;
     int ioc_num;
@@ -156,9 +158,13 @@ private:
     void sdxlist_sit(QTextStream & stream);
     void sdxlist_wl1(QTextStream & stream);
     void sdxlist_wl2(QTextStream & stream);
+    void autofio_wl1();
+    void invokeProcess(const QString & program, const QStringList & arguments);
 
-    Ui::Widget *ui;
-    QFileSystemWatcher *m_Watcher;
+    Ui::Widget * ui;
+    QVBoxLayout * m_layout;
+    QSystemTrayIcon * m_trayIcon;
+    QFileSystemWatcher * m_Watcher;
 };
 
 extern DeviceFunc gDevices;

@@ -134,7 +134,7 @@
     <widget class="QRadioButton" name="radSit">
      <property name="geometry">
       <rect>
-       <x>30</x>
+       <x>120</x>
        <y>10</y>
        <width>112</width>
        <height>23</height>
@@ -150,7 +150,7 @@
     <widget class="QRadioButton" name="radWl1">
      <property name="geometry">
       <rect>
-       <x>30</x>
+       <x>120</x>
        <y>40</y>
        <width>181</width>
        <height>23</height>
@@ -163,7 +163,7 @@
     <widget class="QRadioButton" name="radWl2">
      <property name="geometry">
       <rect>
-       <x>30</x>
+       <x>120</x>
        <y>70</y>
        <width>181</width>
        <height>23</height>
@@ -172,6 +172,161 @@
      <property name="text">
       <string>Wload 2 (4k_RandW)</string>
      </property>
+    </widget>
+    <widget class="QPushButton" name="btnListSdx">
+     <property name="geometry">
+      <rect>
+       <x>13</x>
+       <y>30</y>
+       <width>91</width>
+       <height>41</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string> list / test</string>
+     </property>
+     <property name="icon">
+      <iconset resource="systray.qrc">
+       <normaloff>:/listsdx_48.png</normaloff>:/listsdx_48.png</iconset>
+     </property>
+    </widget>
+    <widget class="QRadioButton" name="radAf1">
+     <property name="geometry">
+      <rect>
+       <x>330</x>
+       <y>40</y>
+       <width>130</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Auto FIO (Wl 1)</string>
+     </property>
+    </widget>
+    <widget class="QRadioButton" name="radAf2">
+     <property name="geometry">
+      <rect>
+       <x>330</x>
+       <y>70</y>
+       <width>130</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Auto FIO (Wl 2)</string>
+     </property>
+    </widget>
+    <widget class="QGroupBox" name="groupBox">
+     <property name="geometry">
+      <rect>
+       <x>490</x>
+       <y>5</y>
+       <width>161</width>
+       <height>91</height>
+      </rect>
+     </property>
+     <property name="autoFillBackground">
+      <bool>true</bool>
+     </property>
+     <property name="title">
+      <string>Fan duty</string>
+     </property>
+     <widget class="QCheckBox" name="cb_fd100">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>23</y>
+        <width>92</width>
+        <height>23</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>100%</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QCheckBox" name="cb_fd90">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>44</y>
+        <width>92</width>
+        <height>23</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>90%</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QCheckBox" name="cb_fd80">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>65</y>
+        <width>92</width>
+        <height>23</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>80%</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QCheckBox" name="cb_fd60">
+      <property name="geometry">
+       <rect>
+        <x>90</x>
+        <y>44</y>
+        <width>92</width>
+        <height>23</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>60%</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QCheckBox" name="cb_fd50">
+      <property name="geometry">
+       <rect>
+        <x>90</x>
+        <y>65</y>
+        <width>92</width>
+        <height>23</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>50%</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QCheckBox" name="cb_fd70">
+      <property name="geometry">
+       <rect>
+        <x>90</x>
+        <y>23</y>
+        <width>92</width>
+        <height>23</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>70%</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
     </widget>
    </widget>
    <widget class="QWidget" name="tab_info">
@@ -1839,23 +1994,6 @@ li.checked::marker { content: &quot;\2612&quot;; }
    <property name="icon">
     <iconset theme="document-new">
      <normaloff>.</normaloff>.</iconset>
-   </property>
-  </widget>
-  <widget class="QPushButton" name="btnListSdx">
-   <property name="geometry">
-    <rect>
-     <x>880</x>
-     <y>100</y>
-     <width>100</width>
-     <height>25</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string> SDx list</string>
-   </property>
-   <property name="icon">
-    <iconset resource="systray.qrc">
-     <normaloff>:/listsdx_48.png</normaloff>:/listsdx_48.png</iconset>
    </property>
   </widget>
  </widget>
