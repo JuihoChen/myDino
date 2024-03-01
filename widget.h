@@ -155,10 +155,10 @@ private slots:
 private:
     void filloutCanvas(bool uncheck = true);
     int phySetDisabled(bool disable);
-    void sdxlist_sit(QTextStream & stream);
-    void sdxlist_wl1(QTextStream & stream);
-    void sdxlist_wl2(QTextStream & stream);
-    void autofio_wl1();
+    void sdxlist_sit(QTextStream & stream, int sl = -1);
+    void sdxlist_wl1(QTextStream & stream, int sl = -1);
+    void sdxlist_wl2(QTextStream & stream, int sl = -1);
+    void autofio_wls(int wl);
     void invokeProcess(const QString & program, const QStringList & arguments);
 
     Ui::Widget * ui;

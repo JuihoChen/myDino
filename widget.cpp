@@ -335,8 +335,10 @@ void Widget::btnRefreshClicked()
     appendMessage(QString::asprintf("Found %d expanders and %d devices", gControllers.count(), gDevices.count()));
 }
 
-void Widget::sdxlist_sit(QTextStream & stream)
+void Widget::sdxlist_sit(QTextStream & stream, int sl)
 {
+    Q_UNUSED(sl);
+
     // loop through the expanders discovered
     for (int k = 0; k < 4; ++k) {
         stream << "Expander-" << k+1 << Qt::endl;
@@ -368,7 +370,7 @@ void Widget::sdxlist_sit(QTextStream & stream)
     }
 }
 
-void Widget::sdxlist_wl1(QTextStream & stream)
+void Widget::sdxlist_wl1(QTextStream & stream, int sl)
 {
     stream << "[global]"        << Qt::endl
            << "bs=4K"           << Qt::endl
@@ -396,7 +398,7 @@ void Widget::sdxlist_wl1(QTextStream & stream)
                     stream << "[job" << ++jobn << "]" << Qt::endl
                            << "filename=/dev/" << gDevices.block(i) << Qt::endl;
                     // check if this slot is the target?
-                    if (gDevices.cbSlot(i)->isChecked()) {
+                    if ((i == sl) || ((-1 == sl) && gDevices.cbSlot(i)->isChecked())) {
                         stream << "bs=512k" << Qt::endl
                                << "rw=write" << Qt::endl;
                     }
@@ -407,7 +409,7 @@ void Widget::sdxlist_wl1(QTextStream & stream)
     }
 }
 
-void Widget::sdxlist_wl2(QTextStream & stream)
+void Widget::sdxlist_wl2(QTextStream & stream, int sl)
 {
     stream << "[global]"        << Qt::endl
            << "bs=4K"           << Qt::endl
@@ -435,7 +437,7 @@ void Widget::sdxlist_wl2(QTextStream & stream)
                     stream << "[job" << ++jobn << "]" << Qt::endl
                            << "filename=/dev/" << gDevices.block(i) << Qt::endl;
                     // check if this slot is the target?
-                    if (gDevices.cbSlot(i)->isChecked()) {
+                    if ((i == sl) || ((-1 == sl) && gDevices.cbSlot(i)->isChecked())) {
                         stream << "bs=4k" << Qt::endl
                                << "rw=randwrite" << Qt::endl;
                     }
@@ -454,24 +456,30 @@ void Widget::invokeProcess(const QString &program, const QStringList &arguments)
     myProcess.setProcessChannelMode(QProcess::MergedChannels);
     myProcess.start(program, arguments);
 
-    // Continue reading the data until EOF reached
-    QByteArray data;
-
-    while (myProcess.waitForReadyRead()) {
-        data.append(myProcess.readAll());
+    if (false == myProcess.waitForStarted()) {
+        throw QString("Process '") + program + "' failed to get started!";
     }
-    myProcess.waitForFinished();
+
+    /**
+     * Warning: Calling this function from the main (GUI) thread might cause your user interface to freeze.
+     * If msecs is -1, this function will not time out.
+     */
+    if (false == myProcess.waitForFinished(-1)) {
+        throw QString("Process '") + program + "' not finished!";
+    }
+
+    QByteArray data;
+    data.append(myProcess.readAll());
 
     // Output the data
     qDebug() << data.data();
 }
 
-void Widget::autofio_wl1()
+void Widget::autofio_wls(int wl)
 {
     QMessageBox msgBox(this);
     msgBox.setIconPixmap(QPixmap(":/listsdx_48.png"));
-    msgBox.setText("Auto FIO (Workload 1)");
-    //msgBox.setInformativeText("Auto FIO (Workload 1)");
+    msgBox.setText(QString("Auto FIO (Workload %1)").arg(wl));
     msgBox.setStandardButtons(QMessageBox::Cancel | QMessageBox::Ok);
 
     if (QMessageBox::Ok == msgBox.exec()) {
@@ -495,6 +503,7 @@ void Widget::autofio_wl1()
         }
 
         int progress = 0;
+        int devCount = gDevices.count();
 
         try {
             // loop through fan duty 50% -> 100%
@@ -526,9 +535,10 @@ void Widget::autofio_wl1()
                                 if (false == gDevices.slotVacant(i)) {
                                     QDateTime date(QDateTime::currentDateTime());
                                     QString time = date.toString("_yyyyMMdd_hhmmss");
-                                    QString fio = "512k_SeqW_" + fd[l] + "_" + gDevices.block(i) + time + ".fio";
-                                    QString out = "512k_SeqW_" + fd[l] + "_" + gDevices.block(i) + time + ".txt";
-                                    QString msg = fio + "  -->  " + out + QString::asprintf(" (%d/%d)", ++progress, loops * gDevices.count());
+                                    QString head = (1 == wl) ? "512k_SeqW_" : "4k_RandW_";
+                                    QString fio = head + fd[l] + "_" + gDevices.block(i) + time + ".fio";
+                                    QString out = head + fd[l] + "_" + gDevices.block(i) + time + ".txt";
+                                    QString msg = fio + "  -->  " + out + QString::asprintf(" (%d/%d)", ++progress, loops * devCount);
                                     appendMessage(msg);
 
                                     QFile file(fio);
@@ -538,10 +548,16 @@ void Widget::autofio_wl1()
                                         QTextStream stream(&file);
 
                                         // Do the listing
-                                        sdxlist_wl1(stream);
+                                        (1 == wl) ? sdxlist_wl1(stream, i) : sdxlist_wl2(stream, i);
 
                                         // Close the script file
                                         file.close();
+
+                                        // Execute FIO test
+                                        program = "fio";
+                                        arguments.clear();
+                                        arguments << fio << "--output" << out;
+                                        invokeProcess(program, arguments);
 
                                         // Finally, remove the script file
                                         file.remove();
@@ -571,7 +587,7 @@ void Widget::autofio_wl1()
 void Widget::btnListSdxClicked()
 {
     const char * SDX_LIST_FILE[] = { "Dino_sdx_list.txt", "512k_SeqW_4k_RandR.fio", "4k_RandW_4k_RandR.fio" };
-    void (Widget::*do_list[])(QTextStream & stream) = { &Widget::sdxlist_sit, &Widget::sdxlist_wl1, &Widget::sdxlist_wl2 };
+    void (Widget::*do_list[])(QTextStream & stream, int sl) = { &Widget::sdxlist_sit, &Widget::sdxlist_wl1, &Widget::sdxlist_wl2 };
 
     int choice = 0;
     if (ui->tabWidget->currentIndex() == ENUM_TAB::FIO) {
@@ -582,7 +598,11 @@ void Widget::btnListSdxClicked()
             choice = 2;
         }
         if (ui->radAf1->isChecked()) {
-            autofio_wl1();
+            autofio_wls(1);
+            return;
+        }
+        if (ui->radAf2->isChecked()) {
+            autofio_wls(2);
             return;
         }
     }
@@ -600,7 +620,7 @@ void Widget::btnListSdxClicked()
         QTextStream stream(&file);
 
         // Do the listing
-        (this->*do_list[choice])(stream);
+        (this->*do_list[choice])(stream, -1);
 
         // Close the output file
         file.close();
