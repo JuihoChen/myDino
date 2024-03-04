@@ -464,8 +464,11 @@ void Widget::invokeProcess(const QString &program, const QStringList &arguments)
      * Warning: Calling this function from the main (GUI) thread might cause your user interface to freeze.
      * If msecs is -1, this function will not time out.
      */
-    if (false == myProcess.waitForFinished(-1)) {
-        throw QString("Process '") + program + "' not finished!";
+    //if (false == myProcess.waitForFinished(-1)) {
+    while (false == myProcess.waitForFinished(100)) {
+        //throw QString("Process '") + program + "' not finished!";
+        extern QApplication *gApp;
+        gApp->processEvents();
     }
 
     QByteArray data;
@@ -536,8 +539,9 @@ void Widget::autofio_wls(int wl)
                                     QDateTime date(QDateTime::currentDateTime());
                                     QString time = date.toString("_yyyyMMdd_hhmmss");
                                     QString head = (1 == wl) ? "512k_SeqW_" : "4k_RandW_";
-                                    QString fio = head + fd[l] + "_" + gDevices.block(i) + time + ".fio";
-                                    QString out = head + fd[l] + "_" + gDevices.block(i) + time + ".txt";
+                                    QString sln = QString::asprintf("_sl%03d_", i + 1);
+                                    QString fio = head + fd[l] + sln + gDevices.block(i) + time + ".fio";
+                                    QString out = head + fd[l] + sln + gDevices.block(i) + time + ".txt";
                                     QString msg = fio + "  -->  " + out + QString::asprintf(" (%d/%d)", ++progress, loops * devCount);
                                     appendMessage(msg);
 
@@ -571,6 +575,9 @@ void Widget::autofio_wls(int wl)
                     }
                 }
             }
+            // Test is over!
+            appendMessage("Batch test is completed!");
+
         } catch (QString msg) {
             appendMessage(msg);
         }

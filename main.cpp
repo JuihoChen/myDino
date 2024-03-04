@@ -10,6 +10,7 @@
 #endif
 
 int verbose = 0;
+QApplication *gApp;
 
 static struct option long_options[] = {
     { "verbose", no_argument, 0, 'v' },
@@ -28,8 +29,9 @@ int main(int argc, char *argv[])
 
     QApplication a(argc, argv);
     Widget w;
-    w.setWindowTitle("myDino [0.09]" DEBUG_HL);
+    w.setWindowTitle("myDino [0.10]" DEBUG_HL);
     w.show();
 
+    gApp = &a;
     return a.exec();
 }
