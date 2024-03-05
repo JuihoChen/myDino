@@ -293,6 +293,7 @@ Widget::Widget(QWidget *parent)
     gCombo = ui->cbxSlot;
     gText = ui->textBrowser;
 
+    ui->progress_afio->hide();
     ///ui->radDiscover->hide();    // temporarily hide for release
 
     appendMessage("Here lists the messages:");
@@ -448,7 +449,7 @@ void Widget::sdxlist_wl2(QTextStream & stream, int sl)
     }
 }
 
-void Widget::invokeProcess(const QString &program, const QStringList &arguments)
+void Widget::invokeProcess(const QString &program, const QStringList &arguments, int progress_maxms)
 {
     qDebug() << program + " " + arguments.join(" ");
 
@@ -464,12 +465,22 @@ void Widget::invokeProcess(const QString &program, const QStringList &arguments)
      * Warning: Calling this function from the main (GUI) thread might cause your user interface to freeze.
      * If msecs is -1, this function will not time out.
      */
+    if (0 != progress_maxms)
+    {
+        ui->progress_afio->setRange(0, progress_maxms);
+        ui->progress_afio->show();
+    }
+    int progress = 0;
     //if (false == myProcess.waitForFinished(-1)) {
     while (false == myProcess.waitForFinished(100)) {
         //throw QString("Process '") + program + "' not finished!";
         extern QApplication *gApp;
         gApp->processEvents();
+        if (0 != progress_maxms) {
+            ui->progress_afio->setValue(progress += 100);
+        }
     }
+    ui->progress_afio->hide();
 
     QByteArray data;
     data.append(myProcess.readAll());
@@ -561,7 +572,7 @@ void Widget::autofio_wls(int wl)
                                         program = "fio";
                                         arguments.clear();
                                         arguments << fio << "--output" << out;
-                                        invokeProcess(program, arguments);
+                                        invokeProcess(program, arguments, 150 * 1000);
 
                                         // Finally, remove the script file
                                         file.remove();
