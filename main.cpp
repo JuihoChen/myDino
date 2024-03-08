@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
 
     QApplication a(argc, argv);
     Widget w;
-    w.setWindowTitle("myDino [0.10]" DEBUG_HL);
+    w.setWindowTitle("myDino [0.12]" DEBUG_HL);
     w.show();
 
     gApp = &a;

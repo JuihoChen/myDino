@@ -219,7 +219,7 @@
     <widget class="QGroupBox" name="groupBox">
      <property name="geometry">
       <rect>
-       <x>490</x>
+       <x>520</x>
        <y>5</y>
        <width>161</width>
        <height>91</height>
@@ -327,6 +327,38 @@
        <bool>true</bool>
       </property>
      </widget>
+    </widget>
+    <widget class="QSpinBox" name="spinAfwl">
+     <property name="geometry">
+      <rect>
+       <x>431</x>
+       <y>10</y>
+       <width>60</width>
+       <height>26</height>
+      </rect>
+     </property>
+     <property name="suffix">
+      <string>s</string>
+     </property>
+     <property name="prefix">
+      <string/>
+     </property>
+     <property name="value">
+      <number>10</number>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_2">
+     <property name="geometry">
+      <rect>
+       <x>344</x>
+       <y>14</y>
+       <width>80</width>
+       <height>17</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Pause Time</string>
+     </property>
     </widget>
    </widget>
    <widget class="QWidget" name="tab_info">

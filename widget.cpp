@@ -468,16 +468,17 @@ void Widget::invokeProcess(const QString &program, const QStringList &arguments,
     if (0 != progress_maxms)
     {
         ui->progress_afio->setRange(0, progress_maxms);
+        ui->progress_afio->setValue(0);
         ui->progress_afio->show();
     }
-    int progress = 0;
+    int progress = 0, step = 100;
     //if (false == myProcess.waitForFinished(-1)) {
-    while (false == myProcess.waitForFinished(100)) {
+    while (false == myProcess.waitForFinished(step)) {
         //throw QString("Process '") + program + "' not finished!";
         extern QApplication *gApp;
         gApp->processEvents();
         if (0 != progress_maxms) {
-            ui->progress_afio->setValue(progress += 100);
+            ui->progress_afio->setValue(progress += step);
         }
     }
     ui->progress_afio->hide();
@@ -516,6 +517,7 @@ void Widget::autofio_wls(int wl)
             loops = 1;
         }
 
+        bool tested = false;
         int progress = 0;
         int devCount = gDevices.count();
 
@@ -547,6 +549,35 @@ void Widget::autofio_wls(int wl)
                             for (int i = k*NSLOT_PEREXP; i < (k+1)*NSLOT_PEREXP; ++i) {
                                 // check if this slot is occupied?
                                 if (false == gDevices.slotVacant(i)) {
+
+                                    // check if pause time need to insert between tests
+                                    if (tested) {
+                                        int pause_ms = ui->spinAfwl->value() * 1000;
+                                        if (pause_ms) {
+                                            ui->progress_afio->setRange(0, pause_ms);
+                                            ui->progress_afio->setValue(0);
+
+                                            QPalette r, p;
+                                            r = p = ui->progress_afio->palette();
+                                            p.setColor(QPalette::Highlight, Qt::green);
+                                            ui->progress_afio->setPalette(p);
+                                            ui->progress_afio->show();
+
+                                            int progress = 0, step = 100;
+                                            while (progress < pause_ms) {
+                                                // Run a function with a delay in QT
+                                                QEventLoop loop;
+                                                QTimer::singleShot(step, &loop, &QEventLoop::quit);
+                                                loop.exec();
+                                                ui->progress_afio->setValue(progress += step);
+                                            }
+
+                                            ui->progress_afio->setPalette(r);
+                                            ui->progress_afio->hide();
+                                        }
+                                    }
+                                    tested = true;
+
                                     QDateTime date(QDateTime::currentDateTime());
                                     QString time = date.toString("_yyyyMMdd_hhmmss");
                                     QString head = (1 == wl) ? "512k_SeqW_" : "4k_RandW_";
@@ -660,13 +691,11 @@ void Widget::btnSmpDoitClicked()
     int delay = 0;
     if (ui->radPhyDisable->isChecked()) {
         appendMessage("Disable phys...");
-        if (phySetDisabled(true))
-            delay = 10;
+        delay = phySetDisabled(true);
     }
     else if (ui->radPhyReset->isChecked()) {
         appendMessage("Enable phys...");
-        if (phySetDisabled(false))
-            delay = 10;
+        delay = phySetDisabled(false);
     }
     else if (ui->radDiscover->isChecked()) {
         appendMessage("Discover expanders...");
@@ -679,10 +708,10 @@ void Widget::btnSmpDoitClicked()
         QEventLoop loop;
         QTimer::singleShot(delay, &loop, &QEventLoop::quit);
         loop.exec();
-    }
 
-    // Refreshing ?...
-    filloutCanvas();
+        // Refreshing ?...
+        filloutCanvas();
+    }
 }
 
 void Widget::tabSelected()
@@ -735,6 +764,7 @@ void Widget::filloutCanvas(bool uncheck)
     hba9500 ? slot_discover(verbose) : mpi3mr_slot_discover(verbose);
 }
 
+/* return value is the delay time */
 int Widget::phySetDisabled(bool disable)
 {
     smp_target_obj tobj;
@@ -760,7 +790,7 @@ int Widget::phySetDisabled(bool disable)
                             break;
                         }
                         // signal Delay after function return
-                        ret = 1;
+                        ret = 10;
                     }
                     // check if a resonable phy id (4 - 31)
                     int phy_id = gDevices.slotPhyId(i);
