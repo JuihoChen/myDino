@@ -270,6 +270,7 @@ Widget::Widget(QWidget *parent)
     // Connect Widget signals to the related slots
     connect(ui->cbxSlot, &QComboBox::currentIndexChanged, this, &Widget::cbxSlotIndexChanged);
     connect(ui->btnRefresh, &QPushButton::clicked, this, &Widget::btnRefreshClicked);
+    connect(ui->btnSelectAll, &QPushButton::clicked, this, &Widget::btnSelectAllClicked);
     connect(ui->btnListSdx, &QPushButton::clicked, this, &Widget::btnListSdxClicked);
     connect(ui->btnSmpDoit, &QPushButton::clicked, this, &Widget::btnSmpDoitClicked);
     connect(ui->btnClearTB, &QPushButton::clicked, this, &Widget::btnClearTBClicked);
@@ -287,6 +288,9 @@ Widget::Widget(QWidget *parent)
     m_trayIcon->setIcon(icon);
     m_trayIcon->show();
     setWindowIcon(icon);
+
+    // Init pointer members
+    m_Process = nullptr;
 
     // Init global ui controls handy for manipulation
     gTab = ui->tabWidget;
@@ -306,6 +310,10 @@ Widget::~Widget()
     delete m_layout;
     delete m_trayIcon;
     delete m_Watcher;
+    if (m_Process) {
+        m_Process->kill();
+    }
+    delete m_Process;
 }
 
 void Widget::appendMessage(QString message)
@@ -334,6 +342,15 @@ void Widget::btnRefreshClicked()
 
     filloutCanvas();
     appendMessage(QString::asprintf("Found %d expanders and %d devices", gControllers.count(), gDevices.count()));
+}
+
+void Widget::btnSelectAllClicked()
+{
+    for (int i = 0; i < NSLOT; i++) {
+        if (true == gDevices.cbSlot(i)->isEnabled()) {
+            gDevices.cbSlot(i)->setChecked(true);
+        }
+    }
 }
 
 void Widget::sdxlist_sit(QTextStream & stream, int sl)
@@ -453,11 +470,15 @@ void Widget::invokeProcess(const QString &program, const QStringList &arguments,
 {
     qDebug() << program + " " + arguments.join(" ");
 
-    QProcess myProcess(this);
-    myProcess.setProcessChannelMode(QProcess::MergedChannels);
-    myProcess.start(program, arguments);
+    if (m_Process) {
+        delete m_Process;
+        m_Process = nullptr;
+    }
+    m_Process = new QProcess(this);
+    m_Process->setProcessChannelMode(QProcess::MergedChannels);
+    m_Process->start(program, arguments);
 
-    if (false == myProcess.waitForStarted()) {
+    if (false == m_Process->waitForStarted()) {
         throw QString("Process '") + program + "' failed to get started!";
     }
 
@@ -473,7 +494,7 @@ void Widget::invokeProcess(const QString &program, const QStringList &arguments,
     }
     int progress = 0, step = 100;
     //if (false == myProcess.waitForFinished(-1)) {
-    while (false == myProcess.waitForFinished(step)) {
+    while (false == m_Process->waitForFinished(step)) {
         //throw QString("Process '") + program + "' not finished!";
         extern QApplication *gApp;
         gApp->processEvents();
@@ -484,7 +505,7 @@ void Widget::invokeProcess(const QString &program, const QStringList &arguments,
     ui->progress_afio->hide();
 
     QByteArray data;
-    data.append(myProcess.readAll());
+    data.append(m_Process->readAll());
 
     // Output the data
     qDebug() << data.data();
@@ -517,11 +538,20 @@ void Widget::autofio_wls(int wl)
             loops = 1;
         }
 
-        bool tested = false;
-        int progress = 0;
-        int devCount = gDevices.count();
-
         try {
+            int devCount = 0;
+            for (int i = 0; i < NSLOT; i++) {
+                if (false == gDevices.slotVacant(i) && true == gDevices.cbSlot(i)->isChecked()) {
+                    ++devCount;
+                }
+            }
+            if (0 == devCount) {
+                throw QString("No device selected to test!");
+            }
+
+            bool tested = false;
+            int processed = 0;
+
             // loop through fan duty 50% -> 100%
             for (int l = 0; l < sizeof(cbfd)/sizeof(cbfd[0]); ++l) {
 
@@ -548,7 +578,7 @@ void Widget::autofio_wls(int wl)
                             // Workload 1
                             for (int i = k*NSLOT_PEREXP; i < (k+1)*NSLOT_PEREXP; ++i) {
                                 // check if this slot is occupied?
-                                if (false == gDevices.slotVacant(i)) {
+                                if (false == gDevices.slotVacant(i) && true == gDevices.cbSlot(i)->isChecked()) {
 
                                     // check if pause time need to insert between tests
                                     if (tested) {
@@ -584,33 +614,31 @@ void Widget::autofio_wls(int wl)
                                     QString sln = QString::asprintf("_sl%03d_", i + 1);
                                     QString fio = head + fd[l] + sln + gDevices.block(i) + time + ".fio";
                                     QString out = head + fd[l] + sln + gDevices.block(i) + time + ".txt";
-                                    QString msg = fio + "  -->  " + out + QString::asprintf(" (%d/%d)", ++progress, loops * devCount);
+                                    QString msg = fio + "  -->  " + out + QString::asprintf(" (%d/%d)", ++processed, loops * devCount);
                                     appendMessage(msg);
 
                                     QFile file(fio);
-                                    if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-
-                                        // We're going to streaming text to the file
-                                        QTextStream stream(&file);
-
-                                        // Do the listing
-                                        (1 == wl) ? sdxlist_wl1(stream, i) : sdxlist_wl2(stream, i);
-
-                                        // Close the script file
-                                        file.close();
-
-                                        // Execute FIO test
-                                        program = "fio";
-                                        arguments.clear();
-                                        arguments << fio << "--output" << out;
-                                        invokeProcess(program, arguments, 150 * 1000);
-
-                                        // Finally, remove the script file
-                                        file.remove();
-                                    } else {
-                                        //appendMessage("FIO script failed to open for write!");
+                                    if (false == file.open(QIODevice::WriteOnly | QIODevice::Text)) {
                                         throw QString("FIO script failed to open for write!");
                                     }
+
+                                    // We're going to streaming text to the file
+                                    QTextStream stream(&file);
+
+                                    // Do the listing
+                                    (1 == wl) ? sdxlist_wl1(stream, i) : sdxlist_wl2(stream, i);
+
+                                    // Close the script file
+                                    file.close();
+
+                                    // Execute FIO test
+                                    program = "fio";
+                                    arguments.clear();
+                                    arguments << fio << "--output" << out;
+                                    invokeProcess(program, arguments, 150 * 1000);
+
+                                    // Finally, remove the script file
+                                    file.remove();
                                 }
                             }
                         }

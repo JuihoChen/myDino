@@ -4,6 +4,7 @@
 #include <QCheckBox>
 #include <QFileSystemWatcher>
 #include <QGroupBox>
+#include <QProcess>
 #include <QSystemTrayIcon>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -146,6 +147,7 @@ public:
 private slots:
     void cbxSlotIndexChanged(int index);
     void btnRefreshClicked();
+    void btnSelectAllClicked();
     void btnListSdxClicked();
     void btnClearTBClicked();
     void btnSmpDoitClicked();
@@ -165,6 +167,7 @@ private:
     QVBoxLayout * m_layout;
     QSystemTrayIcon * m_trayIcon;
     QFileSystemWatcher * m_Watcher;
+    QProcess * m_Process;
 };
 
 extern DeviceFunc gDevices;

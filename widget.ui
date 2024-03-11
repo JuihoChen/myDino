@@ -2038,6 +2038,23 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <number>24</number>
    </property>
   </widget>
+  <widget class="QPushButton" name="btnSelectAll">
+   <property name="geometry">
+    <rect>
+     <x>860</x>
+     <y>100</y>
+     <width>121</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string> Select all</string>
+   </property>
+   <property name="icon">
+    <iconset resource="systray.qrc">
+     <normaloff>:/select-all.png</normaloff>:/select-all.png</iconset>
+   </property>
+  </widget>
  </widget>
  <resources>
   <include location="systray.qrc"/>
