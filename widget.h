@@ -23,6 +23,7 @@ typedef enum {
     SMP = 0,
     SG3,
     FIO,
+    FIO2,
     Info
 } ENUM_TAB;
 
@@ -151,6 +152,7 @@ private slots:
     void btnListSdxClicked();
     void btnClearTBClicked();
     void btnSmpDoitClicked();
+    void btnFio2GoClicked();
     void tabSelected();
     void showModified(const QString & path);
 
@@ -162,6 +164,8 @@ private:
     void sdxlist_wl2(QTextStream & stream, int sl = -1);
     void autofio_wls(int wl);
     void invokeProcess(const QString & program, const QStringList & arguments, int progress_maxms = 0);
+    void setFanDuty(const QString duty);
+    void pauseBar(const int pause_ms);
 
     Ui::Widget * ui;
     QVBoxLayout * m_layout;

@@ -123,7 +123,7 @@ void DeviceFunc::setDiscoverResp(int dsn, uchar * src, int len)
         // src area is bigger than discover_resp and zero set before discovery
         memcpy(SlotInfo[sl].discover_resp, src, SMP_FN_DISCOVER_RESP_LEN);
         SlotInfo[sl].resp_len = len;
-        if (nullptr != gTab && ENUM_TAB::FIO != gTab->currentIndex()) {
+        if (nullptr != gTab && ENUM_TAB::FIO != gTab->currentIndex() && ENUM_TAB::FIO2 != gTab->currentIndex()) {
             SlotInfo[sl].cb_slot->setEnabled(true);
         }
 
@@ -273,6 +273,7 @@ Widget::Widget(QWidget *parent)
     connect(ui->btnSelectAll, &QPushButton::clicked, this, &Widget::btnSelectAllClicked);
     connect(ui->btnListSdx, &QPushButton::clicked, this, &Widget::btnListSdxClicked);
     connect(ui->btnSmpDoit, &QPushButton::clicked, this, &Widget::btnSmpDoitClicked);
+    connect(ui->btnFio2Go, &QPushButton::clicked, this, &Widget::btnFio2GoClicked);
     connect(ui->btnClearTB, &QPushButton::clicked, this, &Widget::btnClearTBClicked);
     connect(ui->tabWidget, &QTabWidget::currentChanged, this, &Widget::tabSelected);
 
@@ -511,6 +512,49 @@ void Widget::invokeProcess(const QString &program, const QStringList &arguments,
     qDebug() << data.data();
 }
 
+void Widget::setFanDuty(const QString duty)
+{
+    appendMessage("ipmitool sets fan duty to " + duty + "%");
+
+    QString program = "ipmitool";
+    QStringList arguments;
+
+    // set this command every AC cycle.
+    arguments << "raw" << "0x2e" << "0x40" << "0x16" << "0x7d" << "0x00" << "0x01";
+    invokeProcess(program, arguments);
+
+    // set pwm duty cycle
+    arguments.clear();
+    arguments << "raw" << "0x2e" << "0x44" << "0x16" << "0x7d" << "0x00" << "0xff" << duty;
+    invokeProcess(program, arguments);
+}
+
+void Widget::pauseBar(const int pause_ms)
+{
+    if (pause_ms) {
+        ui->progress_afio->setRange(0, pause_ms);
+        ui->progress_afio->setValue(0);
+
+        QPalette r, p;
+        r = p = ui->progress_afio->palette();
+        p.setColor(QPalette::Highlight, Qt::green);
+        ui->progress_afio->setPalette(p);
+        ui->progress_afio->show();
+
+        int progress = 0, step = 100;
+        while (progress < pause_ms) {
+            // Run a function with a delay in QT
+            QEventLoop loop;
+            QTimer::singleShot(step, &loop, &QEventLoop::quit);
+            loop.exec();
+            ui->progress_afio->setValue(progress += step);
+        }
+
+        ui->progress_afio->setPalette(r);
+        ui->progress_afio->hide();
+    }
+}
+
 void Widget::autofio_wls(int wl)
 {
     QMessageBox msgBox(this);
@@ -557,19 +601,8 @@ void Widget::autofio_wls(int wl)
 
                 // check if this fan duty is to loop
                 if (cbfd[l]->isChecked()) {
-                    appendMessage("ipmitool sets fan duty to " + fd[l] + "%");
-
-                    QString program = "ipmitool";
-                    QStringList arguments;
-
-                    // set this command every AC cycle.
-                    arguments << "raw" << "0x2e" << "0x40" << "0x16" << "0x7d" << "0x00" << "0x01";
-                    invokeProcess(program, arguments);
-
-                    // set pwm duty cycle
-                    arguments.clear();
-                    arguments << "raw" << "0x2e" << "0x44" << "0x16" << "0x7d" << "0x00" << "0xff" << fd[l];
-                    invokeProcess(program, arguments);
+                    // ipmitool sets fan duty to 50%, 60%, ...
+                    setFanDuty(fd[l]);
 
                     // loop through the expanders discovered
                     for (int k = 0; k < 4; ++k) {
@@ -582,29 +615,7 @@ void Widget::autofio_wls(int wl)
 
                                     // check if pause time need to insert between tests
                                     if (tested) {
-                                        int pause_ms = ui->spinAfwl->value() * 1000;
-                                        if (pause_ms) {
-                                            ui->progress_afio->setRange(0, pause_ms);
-                                            ui->progress_afio->setValue(0);
-
-                                            QPalette r, p;
-                                            r = p = ui->progress_afio->palette();
-                                            p.setColor(QPalette::Highlight, Qt::green);
-                                            ui->progress_afio->setPalette(p);
-                                            ui->progress_afio->show();
-
-                                            int progress = 0, step = 100;
-                                            while (progress < pause_ms) {
-                                                // Run a function with a delay in QT
-                                                QEventLoop loop;
-                                                QTimer::singleShot(step, &loop, &QEventLoop::quit);
-                                                loop.exec();
-                                                ui->progress_afio->setValue(progress += step);
-                                            }
-
-                                            ui->progress_afio->setPalette(r);
-                                            ui->progress_afio->hide();
-                                        }
+                                        pauseBar(ui->spinAfwl->value() * 1000);
                                     }
                                     tested = true;
 
@@ -632,10 +643,9 @@ void Widget::autofio_wls(int wl)
                                     file.close();
 
                                     // Execute FIO test
-                                    program = "fio";
-                                    arguments.clear();
+                                    QStringList arguments;
                                     arguments << fio << "--output" << out;
-                                    invokeProcess(program, arguments, 150 * 1000);
+                                    invokeProcess("fio", arguments, 150 * 1000);
 
                                     // Finally, remove the script file
                                     file.remove();
@@ -648,8 +658,8 @@ void Widget::autofio_wls(int wl)
             // Test is over!
             appendMessage("Batch test is completed!");
 
-        } catch (QString msg) {
-            appendMessage(msg);
+        } catch (QString errMsg) {
+            appendMessage(errMsg);
         }
 
         for (int l = 0; l < sizeof(cbfd)/sizeof(cbfd[0]); ++l) {
@@ -742,13 +752,125 @@ void Widget::btnSmpDoitClicked()
     }
 }
 
+void Widget::btnFio2GoClicked()
+{
+    enum { RANDREAD=0, RANDWRITE, SEQREAD, SEQWRITE, RW_ALL };
+    QString fioname[] = { "randread", "randwrite", "read", "write" };
+    QString bs[] = { "4K", "64K", "128K", "256", "512K", "1M" };
+    QString iodepth[] = { "8", "16" };
+    QString group[] = { "group_reporting=0", "#group_reporting"};
+    int ramp_time[] = { 5, 10, 20, 30 };
+    int runtime[] = { 60, 120, 180, 240 };
+
+    try {
+        int devCount = 0;
+        for (int i = 0; i < NSLOT; i++) {
+            if (false == gDevices.slotVacant(i) && true == gDevices.cbSlot(i)->isChecked()) {
+                ++devCount;
+            }
+        }
+        if (0 == devCount) {
+            throw QString("No device selected to test!");
+        }
+
+        // ipmitool sets fan duty to 100%
+        setFanDuty("100");
+
+        int il, loops;
+        if (RW_ALL == ui->cbxRW->currentIndex()) {
+            il = RANDREAD;
+            loops = 4;
+        } else {
+            il = ui->cbxRW->currentIndex();
+            loops = 1;
+        }
+
+        bool tested = false;
+        int processed = 0;
+
+        // loop through the RW action
+        for (int m = 0; m < loops; ++m, ++il) {
+
+            // check if pause time need to insert between tests
+            if (tested) {
+                pauseBar(ui->spinFio2Wl->value() * 1000);
+            }
+            tested = true;
+
+            QDateTime date(QDateTime::currentDateTime());
+            QString time = date.toString("_yyyyMMdd_hhmmss");
+            QString fio = "fio2_" + fioname[il] + "_" + time + ".fio";
+            QString out = "fio2_" + fioname[il] + "_" + time + ".txt";
+            QString msg = fio + "  -->  " + out + QString::asprintf(" (%d/%d)", ++processed, loops);
+            appendMessage(msg);
+
+            QFile file(fio);
+            if (false == file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+                throw QString("FIO script failed to open for write!");
+            }
+
+            // We're going to streaming text to the file
+            QTextStream stream(&file);
+
+            // Do the listing
+            stream << "[global]" << Qt::endl
+                   << "bs=" << bs[ui->cbxBS->currentIndex()] << Qt::endl
+                   << "iodepth=" << iodepth[ui->cbxIODepth->currentIndex()] << Qt::endl
+                   << "direct=1" << Qt::endl
+                   << "ioengine=libaio" << Qt::endl
+                   << group[ui->cbxGroup->currentIndex()] << Qt::endl
+                   << "time_based" << Qt::endl
+                   << "ramp_time=" << ramp_time[ui->cbxRamp->currentIndex()] << Qt::endl
+                   << "runtime=" << runtime[ui->cbxRuntime->currentIndex()] << Qt::endl
+                   << "name=" << fioname[il] << Qt::endl
+                   << "rw=" << fioname[il] << Qt::endl << Qt::endl;
+
+            int jobn = 0;
+
+            // loop through the expanders discovered
+            for (int k = 0; k < 4; ++k) {
+                stream << "## Expander-" << k+1 << Qt::endl;
+                if (false == gControllers.bsgPath(k).isEmpty()) {
+                    // Workload 1
+                    for (int i = k*NSLOT_PEREXP; i < (k+1)*NSLOT_PEREXP; ++i) {
+                        // check if this slot is occupied?
+                        if (false == gDevices.slotVacant(i) && true == gDevices.cbSlot(i)->isChecked()) {
+                            stream << "[job" << ++jobn << "]" << Qt::endl
+                                   << "filename=/dev/" << gDevices.block(i) << Qt::endl << Qt::endl;
+                        }
+                    }
+                }
+            }
+
+            // Close the script file
+            file.close();
+
+            // Execute FIO test
+            QStringList arguments;
+            arguments << fio << "--output" << out;
+            invokeProcess("fio", arguments, (ramp_time[ui->cbxRamp->currentIndex()] + runtime[ui->cbxRuntime->currentIndex()]) * 1000);
+
+            // Finally, remove the script file
+            //file.remove();
+        }
+        // Test is over!
+        appendMessage("Batch test is completed!");
+
+    } catch (QString errMsg) {
+        appendMessage(errMsg);
+    }
+
+    // Modal QMessageBox greys out the tab page, repaint the tab widget
+    ui->tabWidget->repaint();
+}
+
 void Widget::tabSelected()
 {
     static int lastIndex = 0;
     int currIndex = ui->tabWidget->currentIndex();
     switch (currIndex) {
     case ENUM_TAB::SMP:
-        if (lastIndex == ENUM_TAB::FIO) {
+        if (lastIndex == ENUM_TAB::FIO || lastIndex == ENUM_TAB::FIO2) {
             for (int i = 0; i < NSLOT; i++) {
                 if (true == gDevices.slotVacant(i) && gDevices.slotPhyId(i) > 0) {
                     gDevices.cbSlot(i)->setEnabled(true);
@@ -760,6 +882,8 @@ void Widget::tabSelected()
         break;
     case ENUM_TAB::FIO:
         ui->radSit->setChecked(true);
+        // Fall-through ...
+    case ENUM_TAB::FIO2:
         for (int i = 0; i < NSLOT; i++) {
             if (true == gDevices.slotVacant(i) && gDevices.slotPhyId(i) > 0) {
                 gDevices.cbSlot(i)->setEnabled(false);
