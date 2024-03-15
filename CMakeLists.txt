@@ -47,6 +47,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         mpi3mr.h
         listsdx_48.png
         select-all.png
+        worker.h
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET myDino APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR

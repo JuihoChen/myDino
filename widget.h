@@ -156,6 +156,13 @@ private slots:
     void tabSelected();
     void showModified(const QString & path);
 
+protected:
+    void closeEvent(QCloseEvent *event) {
+        qDebug() << "Close button is pressed!!";
+        m_closed++;
+        QWidget::closeEvent(event);
+    }
+
 private:
     void filloutCanvas(bool uncheck = true);
     int phySetDisabled(bool disable);
@@ -171,7 +178,7 @@ private:
     QVBoxLayout * m_layout;
     QSystemTrayIcon * m_trayIcon;
     QFileSystemWatcher * m_Watcher;
-    QProcess * m_Process;
+    int m_closed;
 };
 
 extern DeviceFunc gDevices;

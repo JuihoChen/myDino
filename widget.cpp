@@ -1,4 +1,5 @@
 #include <QDateTime>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QMessageBox>
 #include <QProcess>
@@ -8,6 +9,7 @@
 
 #include "ui_widget.h"
 #include "widget.h"
+#include "worker.h"
 #include "lsscsi.h"
 #include "smp_lib.h"
 #include "smp_discover.h"
@@ -290,9 +292,6 @@ Widget::Widget(QWidget *parent)
     m_trayIcon->show();
     setWindowIcon(icon);
 
-    // Init pointer members
-    m_Process = nullptr;
-
     // Init global ui controls handy for manipulation
     gTab = ui->tabWidget;
     gCombo = ui->cbxSlot;
@@ -311,10 +310,6 @@ Widget::~Widget()
     delete m_layout;
     delete m_trayIcon;
     delete m_Watcher;
-    if (m_Process) {
-        m_Process->kill();
-    }
-    delete m_Process;
 }
 
 void Widget::appendMessage(QString message)
@@ -467,49 +462,36 @@ void Widget::sdxlist_wl2(QTextStream & stream, int sl)
     }
 }
 
-void Widget::invokeProcess(const QString &program, const QStringList &arguments, int progress_maxms)
+void Widget::invokeProcess(const QString & program, const QStringList & arguments, int progress_maxms)
 {
-    qDebug() << program + " " + arguments.join(" ");
+    WorkerThread * workerThread = new WorkerThread(program, arguments, this);
+    //connect(workerThread, &WorkerThread::resultReady, this, &Widget::handleResults);
+    connect(workerThread, &WorkerThread::finished, workerThread, &QObject::deleteLater);
+    workerThread->start();
 
-    if (m_Process) {
-        delete m_Process;
-        m_Process = nullptr;
-    }
-    m_Process = new QProcess(this);
-    m_Process->setProcessChannelMode(QProcess::MergedChannels);
-    m_Process->start(program, arguments);
-
-    if (false == m_Process->waitForStarted()) {
-        throw QString("Process '") + program + "' failed to get started!";
-    }
-
-    /**
-     * Warning: Calling this function from the main (GUI) thread might cause your user interface to freeze.
-     * If msecs is -1, this function will not time out.
-     */
     if (0 != progress_maxms)
     {
         ui->progress_afio->setRange(0, progress_maxms);
         ui->progress_afio->setValue(0);
         ui->progress_afio->show();
     }
-    int progress = 0, step = 100;
-    //if (false == myProcess.waitForFinished(-1)) {
-    while (false == m_Process->waitForFinished(step)) {
-        //throw QString("Process '") + program + "' not finished!";
+    QElapsedTimer timer;
+    timer.start();
+    while (false == workerThread->isFinished()) {
         extern QApplication *gApp;
         gApp->processEvents();
+        if (0 != m_closed) {
+            workerThread->killProcess();
+        }
         if (0 != progress_maxms) {
-            ui->progress_afio->setValue(progress += step);
+            ui->progress_afio->setValue(timer.elapsed());
         }
     }
     ui->progress_afio->hide();
 
-    QByteArray data;
-    data.append(m_Process->readAll());
-
-    // Output the data
-    qDebug() << data.data();
+    if (false == workerThread->m_errMsg.isEmpty()) {
+        throw(workerThread->m_errMsg);
+    }
 }
 
 void Widget::setFanDuty(const QString duty)
@@ -541,13 +523,15 @@ void Widget::pauseBar(const int pause_ms)
         ui->progress_afio->setPalette(p);
         ui->progress_afio->show();
 
-        int progress = 0, step = 100;
+        QElapsedTimer timer;
+        timer.start();
+        int progress = 0;
         while (progress < pause_ms) {
             // Run a function with a delay in QT
             QEventLoop loop;
-            QTimer::singleShot(step, &loop, &QEventLoop::quit);
+            QTimer::singleShot(100, &loop, &QEventLoop::quit);
             loop.exec();
-            ui->progress_afio->setValue(progress += step);
+            ui->progress_afio->setValue(progress = timer.elapsed());
         }
 
         ui->progress_afio->setPalette(r);
@@ -649,6 +633,10 @@ void Widget::autofio_wls(int wl)
 
                                     // Finally, remove the script file
                                     file.remove();
+
+                                    if (0 != m_closed) {
+                                        throw QString("Close button is pressed!");
+                                    }
                                 }
                             }
                         }
@@ -852,6 +840,10 @@ void Widget::btnFio2GoClicked()
 
             // Finally, remove the script file
             //file.remove();
+
+            if (0 != m_closed) {
+                throw QString("Close button is pressed!");
+            }
         }
         // Test is over!
         appendMessage("Batch test is completed!");
