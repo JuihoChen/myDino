@@ -170,7 +170,7 @@ private:
     void sdxlist_wl1(QTextStream & stream, int sl = -1);
     void sdxlist_wl2(QTextStream & stream, int sl = -1);
     void autofio_wls(int wl);
-    void invokeProcess(const QString & program, const QStringList & arguments, int progress_maxms = 0);
+    void startWorkInAThread(const QString & program, const QStringList & arguments, int progress_maxms = 0);
     void setFanDuty(const QString duty);
     void pauseBar(const int pause_ms);
 

@@ -462,7 +462,11 @@ void Widget::sdxlist_wl2(QTextStream & stream, int sl)
     }
 }
 
-void Widget::invokeProcess(const QString & program, const QStringList & arguments, int progress_maxms)
+/*
+ * Use resultReady signal needs one more QCoreApplication::processEvents call after workerThread->isFinished,
+ * So a member m_errMsg is created and used for message passing between threads
+ */
+void Widget::startWorkInAThread(const QString & program, const QStringList & arguments, int progress_maxms)
 {
     WorkerThread * workerThread = new WorkerThread(program, arguments, this);
     //connect(workerThread, &WorkerThread::resultReady, this, &Widget::handleResults);
@@ -503,12 +507,12 @@ void Widget::setFanDuty(const QString duty)
 
     // set this command every AC cycle.
     arguments << "raw" << "0x2e" << "0x40" << "0x16" << "0x7d" << "0x00" << "0x01";
-    invokeProcess(program, arguments);
+    startWorkInAThread(program, arguments);
 
     // set pwm duty cycle
     arguments.clear();
     arguments << "raw" << "0x2e" << "0x44" << "0x16" << "0x7d" << "0x00" << "0xff" << duty;
-    invokeProcess(program, arguments);
+    startWorkInAThread(program, arguments);
 }
 
 void Widget::pauseBar(const int pause_ms)
@@ -629,7 +633,7 @@ void Widget::autofio_wls(int wl)
                                     // Execute FIO test
                                     QStringList arguments;
                                     arguments << fio << "--output" << out;
-                                    invokeProcess("fio", arguments, 150 * 1000);
+                                    startWorkInAThread("fio", arguments, 150 * 1000);
 
                                     // Finally, remove the script file
                                     file.remove();
@@ -836,7 +840,7 @@ void Widget::btnFio2GoClicked()
             // Execute FIO test
             QStringList arguments;
             arguments << fio << "--output" << out;
-            invokeProcess("fio", arguments, (ramp_time[ui->cbxRamp->currentIndex()] + runtime[ui->cbxRuntime->currentIndex()]) * 1000);
+            startWorkInAThread("fio", arguments, (ramp_time[ui->cbxRamp->currentIndex()] + runtime[ui->cbxRuntime->currentIndex()]) * 1000);
 
             // Finally, remove the script file
             //file.remove();

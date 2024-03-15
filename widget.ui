@@ -2369,7 +2369,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
   <widget class="QPushButton" name="btnSelectAll">
    <property name="geometry">
     <rect>
-     <x>860</x>
+     <x>862</x>
      <y>100</y>
      <width>121</width>
      <height>25</height>

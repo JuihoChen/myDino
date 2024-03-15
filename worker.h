@@ -29,7 +29,7 @@ class WorkerThread : public QThread
             m_process->start(m_program, m_arguments);
 
             if (false == m_process->waitForStarted()) {
-                emit resultReady(m_errMsg = "Process '" + m_program + "' failed to get started!");
+                m_errMsg = "Process '" + m_program + "' failed to get started!";
                 break;
             }
 
@@ -38,7 +38,7 @@ class WorkerThread : public QThread
              * If msecs is -1, this function will not time out.
              */
             if (false == m_process->waitForFinished(-1)) {
-                emit resultReady(m_errMsg = "Process '" + m_program + "' not finished!");
+                m_errMsg = "Process '" + m_program + "' not finished!";
                 break;
             }
 
@@ -52,6 +52,8 @@ class WorkerThread : public QThread
 
         delete m_process;
         m_process = nullptr;
+
+        emit resultReady(m_errMsg);
     }
 signals:
     void resultReady(const QString & s);
@@ -67,6 +69,9 @@ public:
     void killProcess() {
         if (nullptr != m_process && false == m_killed) {
             qDebug() << "kill process";
+            /*
+             * On Unix and macOS the SIGTERM signal is sent. (Only QProcess::terminate can kill fio)
+             */
             m_process->terminate();
             m_killed = true;
         }
