@@ -530,7 +530,7 @@ void Widget::pauseBar(const int pause_ms)
         QElapsedTimer timer;
         timer.start();
         int progress = 0;
-        while (progress < pause_ms) {
+        while (progress < pause_ms && 0 == m_closed) {
             // Run a function with a delay in QT
             QEventLoop loop;
             QTimer::singleShot(100, &loop, &QEventLoop::quit);
@@ -606,6 +606,10 @@ void Widget::autofio_wls(int wl)
                                         pauseBar(ui->spinAfwl->value() * 1000);
                                     }
                                     tested = true;
+
+                                    if (0 != m_closed) {
+                                        throw QString("Close button is pressed!");
+                                    }
 
                                     QDateTime date(QDateTime::currentDateTime());
                                     QString time = date.toString("_yyyyMMdd_hhmmss");
@@ -788,6 +792,10 @@ void Widget::btnFio2GoClicked()
                 pauseBar(ui->spinFio2Wl->value() * 1000);
             }
             tested = true;
+
+            if (0 != m_closed) {
+                throw QString("Close button is pressed!");
+            }
 
             QDateTime date(QDateTime::currentDateTime());
             QString time = date.toString("_yyyyMMdd_hhmmss");
