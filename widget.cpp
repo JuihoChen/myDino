@@ -468,6 +468,13 @@ void Widget::sdxlist_wl2(QTextStream & stream, int sl)
  */
 void Widget::startWorkInAThread(const QString & program, const QStringList & arguments, int progress_maxms)
 {
+    /*
+     * Check if ui is closed before the thread gets started
+     */
+    if (0 != m_closed) {
+        throw QString("Close button is pressed!");
+    }
+
     WorkerThread * workerThread = new WorkerThread(program, arguments, this);
     //connect(workerThread, &WorkerThread::resultReady, this, &Widget::handleResults);
     connect(workerThread, &WorkerThread::finished, workerThread, &QObject::deleteLater);
@@ -484,6 +491,10 @@ void Widget::startWorkInAThread(const QString & program, const QStringList & arg
     while (false == workerThread->isFinished()) {
         extern QApplication *gApp;
         gApp->processEvents();
+        /*
+         * Do NOT throw (too premature to end the thread) if ui is closed till here,
+         * Just kill the process and wait the thread to be finished instead.
+         */
         if (0 != m_closed) {
             workerThread->killProcess();
         }
@@ -607,10 +618,6 @@ void Widget::autofio_wls(int wl)
                                     }
                                     tested = true;
 
-                                    if (0 != m_closed) {
-                                        throw QString("Close button is pressed!");
-                                    }
-
                                     QDateTime date(QDateTime::currentDateTime());
                                     QString time = date.toString("_yyyyMMdd_hhmmss");
                                     QString head = (1 == wl) ? "512k_SeqW_" : "4k_RandW_";
@@ -641,10 +648,6 @@ void Widget::autofio_wls(int wl)
 
                                     // Finally, remove the script file
                                     file.remove();
-
-                                    if (0 != m_closed) {
-                                        throw QString("Close button is pressed!");
-                                    }
                                 }
                             }
                         }
@@ -793,10 +796,6 @@ void Widget::btnFio2GoClicked()
             }
             tested = true;
 
-            if (0 != m_closed) {
-                throw QString("Close button is pressed!");
-            }
-
             QDateTime date(QDateTime::currentDateTime());
             QString time = date.toString("_yyyyMMdd_hhmmss");
             QString fio = "fio2_" + fioname[il] + "_" + time + ".fio";
@@ -852,10 +851,6 @@ void Widget::btnFio2GoClicked()
 
             // Finally, remove the script file
             //file.remove();
-
-            if (0 != m_closed) {
-                throw QString("Close button is pressed!");
-            }
         }
         // Test is over!
         appendMessage("Batch test is completed!");
