@@ -15,8 +15,14 @@
 #define NUM_IOC 4
 
 static int ioc_cnt;
-static struct mpi3mr_ioc_facts ioc_facts[NUM_IOC];
 static struct mpi3mr_bsg_in_adpinfo adpinfo[NUM_IOC];
+static struct mpi3mr_ioc_facts ioc_facts[NUM_IOC];
+
+struct my_all_tgt_info {
+    struct mpi3mr_all_tgt_info tgt_info;
+    struct mpi3mr_device_map_info devmap_info[100];
+};
+static struct my_all_tgt_info alltgt_info[NUM_IOC];
 
 /* To differentiate from MPI3 pass through commands */
 #define DRVBSG_OPCODE (0x1 << 31)
@@ -48,9 +54,10 @@ public:
     int reply_sz;
 
 private:
-    int populate_adpinfo();
-    int issue_iocfacts();
-    int smp_passthrough();
+    int m3r_populate_adpinfo();
+    int m3r_get_all_tgt_info();
+    int m3r_issue_iocfacts();
+    int m3r_smp_passthrough();
 
 private:
     int ioc_id;
@@ -77,15 +84,17 @@ int mpi3_request::fill_request()
 
     switch (noFunc) {
     case MPI3_FUNCTION_IOC_FACTS:
-        return issue_iocfacts();
+        return m3r_issue_iocfacts();
     case MPI3_FUNCTION_SMP_PASSTHROUGH:
-        return smp_passthrough();
+        return m3r_smp_passthrough();
     default:
         switch (noFunc - DRVBSG_OPCODE) {
         case MPI3MR_DRVBSG_OPCODE_ADPINFO:
-            return populate_adpinfo();
+            return m3r_populate_adpinfo();
+        case MPI3MR_DRVBSG_OPCODE_ALLTGTDEVINFO:
+            return m3r_get_all_tgt_info();
         }
-        qDebug("%s: ileegal function id=0x%x", __func__, noFunc);
+        qDebug("%s: illegal function id=0x%x", __func__, noFunc);
         break;
     }
     return -1;
@@ -103,6 +112,7 @@ int mpi3_request::response_len(void * mpi_reply)
     default:
         switch (noFunc - DRVBSG_OPCODE) {
         case MPI3MR_DRVBSG_OPCODE_ADPINFO:
+        case MPI3MR_DRVBSG_OPCODE_ALLTGTDEVINFO:
             return rresp->max_response_l;
         }
         break;
@@ -110,7 +120,7 @@ int mpi3_request::response_len(void * mpi_reply)
     return 0;
 }
 
-int mpi3_request::populate_adpinfo()
+int mpi3_request::m3r_populate_adpinfo()
 {
     /* This is to process a Driver Command, not a message passthrough
      *
@@ -124,7 +134,21 @@ int mpi3_request::populate_adpinfo()
     return sizeof(mbp);
 }
 
-int mpi3_request::issue_iocfacts()
+int mpi3_request::m3r_get_all_tgt_info()
+{
+    /* This is to process a Driver Command, not a message passthrough
+     *
+     *  hdr.dout_xfer_len should be zero not to support BIDI
+     */
+
+    mbp.cmd_type = MPI3MR_DRV_CMD;
+    mbp.cmd.drvrcmd.mrioc_id = ioc_id;       // Set the IOC number prior to issuing this command.
+    mbp.cmd.drvrcmd.opcode = MPI3MR_DRVBSG_OPCODE_ALLTGTDEVINFO;
+
+    return sizeof(mbp);
+}
+
+int mpi3_request::m3r_issue_iocfacts()
 {
     struct dummy_reply { char dummy[21]; };
     struct mpi3_ioc_facts_request * mpi_request;
@@ -150,7 +174,7 @@ int mpi3_request::issue_iocfacts()
     return offsetof(struct mpi3mr_bsg_packet, cmd.mptcmd.buf_entry_list.buf_entry[ecnt]);
 }
 
-int mpi3_request::smp_passthrough()
+int mpi3_request::m3r_smp_passthrough()
 {
     struct mpi3_smp_passthrough_request * mpi_request;
 
@@ -367,9 +391,14 @@ void mpi3mr_slot_discover(int vb)
 }
 
 /* Get adapter info command handler */
-static int do_adpinfo(smp_target_obj * top, int vb)
+static int populate_adpinfo(smp_target_obj * top, int vb)
 {
     smp_req_resp smp_rr;
+
+    if (ioc_cnt >= NUM_IOC) {
+        qDebug("[%s] ioc_cnt overflow!", __func__);
+        return ioc_cnt;
+    }
 
     memset(&(adpinfo[ioc_cnt]), 0, sizeof(adpinfo[ioc_cnt]));
     memset(&smp_rr, 0, sizeof(smp_rr));
@@ -395,8 +424,42 @@ static int do_adpinfo(smp_target_obj * top, int vb)
     return 0;
 }
 
+/* Get all target information */
+static int get_all_tgt_info(smp_target_obj * top, int vb)
+{
+    smp_req_resp smp_rr;
+
+    if (ioc_cnt >= NUM_IOC) {
+        qDebug("[%s] ioc_cnt overflow!", __func__);
+        return ioc_cnt;
+    }
+
+    memset(&(alltgt_info[ioc_cnt]), 0, sizeof(alltgt_info[ioc_cnt]));
+    memset(&smp_rr, 0, sizeof(smp_rr));
+
+    smp_rr.mpi3mr_function = DRVBSG_OPCODE + MPI3MR_DRVBSG_OPCODE_ALLTGTDEVINFO;
+    smp_rr.max_response_l = sizeof(alltgt_info[ioc_cnt]);
+    smp_rr.response = (u8*) &(alltgt_info[ioc_cnt]);
+
+    int res = send_req_mpi3mr_bsg(top->fd, top->subvalue, 0, &smp_rr, vb);
+    if (res) {
+        qDebug("[send_req_mpi3mr_bsg] failed, res=%d", res);
+        return -1;
+    }
+    if (smp_rr.transport_err) {
+        qDebug("[send_req_mpi3mr_bsg] transport_error=%d", smp_rr.transport_err);
+        return -1;
+    }
+    if (smp_rr.act_response_l != sizeof(alltgt_info[ioc_cnt])) {
+        qDebug("[send_req_mpi3mr_bsg] ioc_facts data length mismatch");
+        return -1;
+    }
+
+    return 0;
+}
+
 /* Returns count of ioc collected, or -1 on failure */
-static int do_iocfacts(smp_target_obj * top, int vb)
+static int issue_iocfacts(smp_target_obj * top, int vb)
 {
     struct mpi3_ioc_facts_data facts_data;
     smp_req_resp smp_rr;
@@ -479,11 +542,15 @@ void mpi3mr_iocfacts(int vb)
             continue;
         }
 
-        res = do_adpinfo(&tobj, vb);
+        res = populate_adpinfo(&tobj, vb);
         if (res < 0) {
             qDebug("Exit status %d indicates error detected", res);
         }
-        res = do_iocfacts(&tobj, vb);
+        //res = get_all_tgt_info(&tobj, vb);
+        //if (res < 0) {
+        //    qDebug("Exit status %d indicates error detected", res);
+        //}
+        res = issue_iocfacts(&tobj, vb);
         if (res < 0) {
             qDebug("Exit status %d indicates error detected", res);
         }
