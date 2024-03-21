@@ -8,6 +8,7 @@
 #include "mpi30/mpi30_image.h"
 #include "mpi30/mpi30_ioc.h"
 #include "mpi30/mpi30_sas.h"
+#include "mpi30/mpi30_cnfg.h"
 
 /**
  * struct mpi3mr_compimg_ver - replica of component image

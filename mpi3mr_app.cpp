@@ -50,19 +50,22 @@ public:
     int response_len(void * mpi_reply);
 
 public:
-    int request_sz;
-    int reply_sz;
+    int m_requestLen;
+    int m_replyLen;
 
 private:
+    int m3r_add_buf_entry(__u8 buf_type, __u32 buf_len);
     int m3r_populate_adpinfo();
     int m3r_get_all_tgt_info();
     int m3r_issue_iocfacts();
+    int process_cfg_req();
     int m3r_smp_passthrough();
 
 private:
-    int ioc_id;
-    int64_t sas_address;
-    smp_req_resp * rresp;
+    int m_ecnt;
+    int m_iocId;
+    int64_t m_sasAddress;
+    smp_req_resp * m_rresp;
 };
 
 mpi3_request::mpi3_request(int subvalue, int64_t target_sa, smp_req_resp * rr)
@@ -71,20 +74,23 @@ mpi3_request::mpi3_request(int subvalue, int64_t target_sa, smp_req_resp * rr)
     memset(request_m, 0, sizeof(request_m));
     memset(reply_m, 0, sizeof(reply_m));
 
-    ioc_id = subvalue;
-    sas_address = target_sa;
-    rresp = rr;
-    request_sz = 0;
-    reply_sz = 0;
+    m_ecnt = 0;
+    m_iocId = subvalue;
+    m_sasAddress = target_sa;
+    m_rresp = rr;
+    m_requestLen = 0;
+    m_replyLen = 0;
 }
 
 int mpi3_request::fill_request()
 {
-    int noFunc = rresp->mpi3mr_function;
+    int noFunc = m_rresp->mpi3mr_function;
 
     switch (noFunc) {
     case MPI3_FUNCTION_IOC_FACTS:
         return m3r_issue_iocfacts();
+    case MPI3_FUNCTION_CONFIG:
+        return process_cfg_req();
     case MPI3_FUNCTION_SMP_PASSTHROUGH:
         return m3r_smp_passthrough();
     default:
@@ -102,33 +108,43 @@ int mpi3_request::fill_request()
 
 int mpi3_request::response_len(void * mpi_reply)
 {
-    int noFunc = rresp->mpi3mr_function;
+    int noFunc = m_rresp->mpi3mr_function;
 
     switch (noFunc) {
     case MPI3_FUNCTION_IOC_FACTS:
         return ((struct mpi3_ioc_facts_data *)reply_m)->ioc_facts_data_length * 4;
+    case MPI3_FUNCTION_CONFIG:
+        return m_rresp->max_response_l;
     case MPI3_FUNCTION_SMP_PASSTHROUGH:
         return ((struct mpi3_smp_passthrough_reply *)mpi_reply)->response_data_length;
     default:
         switch (noFunc - DRVBSG_OPCODE) {
         case MPI3MR_DRVBSG_OPCODE_ADPINFO:
         case MPI3MR_DRVBSG_OPCODE_ALLTGTDEVINFO:
-            return rresp->max_response_l;
+            return m_rresp->max_response_l;
         }
         break;
     }
     return 0;
 }
 
+int mpi3_request::m3r_add_buf_entry(__u8 buf_type, __u32 buf_len)
+{
+    mbp.cmd.mptcmd.buf_entry_list.buf_entry[m_ecnt].buf_type = buf_type;
+    mbp.cmd.mptcmd.buf_entry_list.buf_entry[m_ecnt].buf_len = buf_len;
+
+    return ++m_ecnt;
+}
+
 int mpi3_request::m3r_populate_adpinfo()
 {
-    /* This is to process a Driver Command, not a message passthrough
+    /* This is to process a HBA Driver Command, not a message passthrough
+     * (There is no data going out downward to HBA/FW)
      *
-     *  hdr.dout_xfer_len should be zero not to support BIDI
+     *  hdr.dout_xfer_len (rresp->request_len + m_requestLen) must be zero to NOT support BIDI
      */
-
     mbp.cmd_type = MPI3MR_DRV_CMD;
-    mbp.cmd.drvrcmd.mrioc_id = ioc_id;       // Set the IOC number prior to issuing this command.
+    mbp.cmd.drvrcmd.mrioc_id = m_iocId;     // Set the IOC number prior to issuing this command.
     mbp.cmd.drvrcmd.opcode = MPI3MR_DRVBSG_OPCODE_ADPINFO;
 
     return sizeof(mbp);
@@ -136,13 +152,13 @@ int mpi3_request::m3r_populate_adpinfo()
 
 int mpi3_request::m3r_get_all_tgt_info()
 {
-    /* This is to process a Driver Command, not a message passthrough
+    /* This is to process a HBA Driver Command, not a message passthrough
+     * (There is no data going out downward to HBA/FW)
      *
-     *  hdr.dout_xfer_len should be zero not to support BIDI
+     *  hdr.dout_xfer_len (rresp->request_len + m_requestLen) must be zero to NOT support BIDI
      */
-
     mbp.cmd_type = MPI3MR_DRV_CMD;
-    mbp.cmd.drvrcmd.mrioc_id = ioc_id;       // Set the IOC number prior to issuing this command.
+    mbp.cmd.drvrcmd.mrioc_id = m_iocId;     // Set the IOC number prior to issuing this command.
     mbp.cmd.drvrcmd.opcode = MPI3MR_DRVBSG_OPCODE_ALLTGTDEVINFO;
 
     return sizeof(mbp);
@@ -150,64 +166,88 @@ int mpi3_request::m3r_get_all_tgt_info()
 
 int mpi3_request::m3r_issue_iocfacts()
 {
-    struct dummy_reply { char dummy[21]; };
     struct mpi3_ioc_facts_request * mpi_request;
+    struct dummy_reply { char dummy[21]; };
 
-    request_sz = sizeof(struct mpi3_ioc_facts_request);
-    reply_sz = sizeof(struct dummy_reply);
+    m_requestLen = sizeof(struct mpi3_ioc_facts_request);
+    m_replyLen = sizeof(struct dummy_reply);
 
-    mpi_request = (struct mpi3_ioc_facts_request *)request_m;
-    mpi_request->function = rresp->mpi3mr_function;
+    mpi_request = (struct mpi3_ioc_facts_request *) request_m;
+    mpi_request->function = m_rresp->mpi3mr_function;
 
-    const int ecnt = 3;
+    m3r_add_buf_entry(MPI3MR_BSG_BUFTYPE_DATA_IN, m_rresp->max_response_l);
+    m3r_add_buf_entry(MPI3MR_BSG_BUFTYPE_MPI_REPLY, m_replyLen);
+    m3r_add_buf_entry(MPI3MR_BSG_BUFTYPE_MPI_REQUEST, m_requestLen);
+
     mbp.cmd_type = MPI3MR_MPT_CMD;
     mbp.cmd.mptcmd.timeout = 180;           // ?a hacked value
-    mbp.cmd.mptcmd.mrioc_id = ioc_id;       // Set the IOC number prior to issuing this command.
-    mbp.cmd.mptcmd.buf_entry_list.num_of_entries = ecnt;
-    mbp.cmd.mptcmd.buf_entry_list.buf_entry[0].buf_type = MPI3MR_BSG_BUFTYPE_DATA_IN;
-    mbp.cmd.mptcmd.buf_entry_list.buf_entry[0].buf_len = rresp->max_response_l;
-    mbp.cmd.mptcmd.buf_entry_list.buf_entry[1].buf_type = MPI3MR_BSG_BUFTYPE_MPI_REPLY;
-    mbp.cmd.mptcmd.buf_entry_list.buf_entry[1].buf_len = reply_sz;
-    mbp.cmd.mptcmd.buf_entry_list.buf_entry[2].buf_type = MPI3MR_BSG_BUFTYPE_MPI_REQUEST;
-    mbp.cmd.mptcmd.buf_entry_list.buf_entry[2].buf_len = request_sz;
+    mbp.cmd.mptcmd.mrioc_id = m_iocId;      // Set the IOC number prior to issuing this command.
+    mbp.cmd.mptcmd.buf_entry_list.num_of_entries = m_ecnt;
 
-    return offsetof(struct mpi3mr_bsg_packet, cmd.mptcmd.buf_entry_list.buf_entry[ecnt]);
+    return (long) & mbp.cmd.mptcmd.buf_entry_list.buf_entry[m_ecnt] - (long) & mbp;
+}
+
+int mpi3_request::process_cfg_req()
+{
+    struct mpi3_config_request * mpi_request;
+    struct dummy_reply { char dummy[21]; };
+
+    m_requestLen = sizeof(struct mpi3_config_request);
+    m_replyLen = sizeof(struct dummy_reply);
+
+    mpi_request = (struct mpi3_config_request *) request_m;
+    /*
+     * !!! Copy to request_m is a must to prevent driver crash
+     */
+    if (nullptr == m_rresp->mpi3mr_object) {
+        qDebug("%s: no valid config request to process!", __func__);
+        return 0;
+    }
+    *mpi_request = *(struct mpi3_config_request *) m_rresp->mpi3mr_object;
+
+    m3r_add_buf_entry(MPI3MR_BSG_BUFTYPE_DATA_IN, m_rresp->max_response_l);
+    m3r_add_buf_entry(MPI3MR_BSG_BUFTYPE_MPI_REPLY, m_replyLen);
+    m3r_add_buf_entry(MPI3MR_BSG_BUFTYPE_MPI_REQUEST, m_requestLen);
+
+    mbp.cmd_type = MPI3MR_MPT_CMD;
+    mbp.cmd.mptcmd.timeout = 180;           // ?a hacked value
+    mbp.cmd.mptcmd.mrioc_id = m_iocId;      // Set the IOC number prior to issuing this command.
+    mbp.cmd.mptcmd.buf_entry_list.num_of_entries = m_ecnt;
+
+    return (long) & mbp.cmd.mptcmd.buf_entry_list.buf_entry[m_ecnt] - (long) & mbp;
 }
 
 int mpi3_request::m3r_smp_passthrough()
 {
     struct mpi3_smp_passthrough_request * mpi_request;
 
-    request_sz = sizeof(struct mpi3_smp_passthrough_request);
-    reply_sz = sizeof(struct mpi3_smp_passthrough_reply);
+    m_requestLen = sizeof(struct mpi3_smp_passthrough_request);
+    m_replyLen = sizeof(struct mpi3_smp_passthrough_reply);
 
-    memcpy(request_m, rresp->request, rresp->request_len);
-    mpi_request = (struct mpi3_smp_passthrough_request *)(request_m + rresp->request_len);
-    mpi_request->function = rresp->mpi3mr_function;
+    memcpy(request_m, m_rresp->request, m_rresp->request_len);
+    mpi_request = (struct mpi3_smp_passthrough_request *)(request_m + m_rresp->request_len);
+    mpi_request->function = m_rresp->mpi3mr_function;
     mpi_request->io_unit_port = 0xFF;       // ?invalid port number (rphy)
-    mpi_request->sas_address = sas_address;
+    mpi_request->sas_address = m_sasAddress;
 
-    const int ecnt = 4;
+    m3r_add_buf_entry(MPI3MR_BSG_BUFTYPE_DATA_OUT, m_rresp->request_len);
+    m3r_add_buf_entry(MPI3MR_BSG_BUFTYPE_DATA_IN, m_rresp->max_response_l);
+    m3r_add_buf_entry(MPI3MR_BSG_BUFTYPE_MPI_REPLY, m_replyLen);
+    m3r_add_buf_entry(MPI3MR_BSG_BUFTYPE_MPI_REQUEST, m_requestLen);
+
     mbp.cmd_type = MPI3MR_MPT_CMD;
     mbp.cmd.mptcmd.timeout = 180;           // ?a hacked value
-    mbp.cmd.mptcmd.mrioc_id = ioc_id;       // Set the IOC number prior to issuing this command.
-    mbp.cmd.mptcmd.buf_entry_list.num_of_entries = ecnt;
-    mbp.cmd.mptcmd.buf_entry_list.buf_entry[0].buf_type = MPI3MR_BSG_BUFTYPE_DATA_OUT;
-    mbp.cmd.mptcmd.buf_entry_list.buf_entry[0].buf_len = rresp->request_len;
-    mbp.cmd.mptcmd.buf_entry_list.buf_entry[1].buf_type = MPI3MR_BSG_BUFTYPE_DATA_IN;
-    mbp.cmd.mptcmd.buf_entry_list.buf_entry[1].buf_len = rresp->max_response_l;
-    mbp.cmd.mptcmd.buf_entry_list.buf_entry[2].buf_type = MPI3MR_BSG_BUFTYPE_MPI_REPLY;
-    mbp.cmd.mptcmd.buf_entry_list.buf_entry[2].buf_len = reply_sz;
-    mbp.cmd.mptcmd.buf_entry_list.buf_entry[3].buf_type = MPI3MR_BSG_BUFTYPE_MPI_REQUEST;
-    mbp.cmd.mptcmd.buf_entry_list.buf_entry[3].buf_len = request_sz;
+    mbp.cmd.mptcmd.mrioc_id = m_iocId;      // Set the IOC number prior to issuing this command.
+    mbp.cmd.mptcmd.buf_entry_list.num_of_entries = m_ecnt;
 
-    return offsetof(struct mpi3mr_bsg_packet, cmd.mptcmd.buf_entry_list.buf_entry[ecnt]);
+    return (long) & mbp.cmd.mptcmd.buf_entry_list.buf_entry[m_ecnt] - (long) & mbp;
 }
 
 /* Returns 0 on success else -1 . */
 int send_req_mpi3mr_bsg(int fd, int subvalue, int64_t target_sa, smp_req_resp * rresp, int vb)
 {
     mpi3_request mpi3rq(subvalue, target_sa, rresp);
+
     int request_l = mpi3rq.fill_request();
     if (request_l <= 0) {    // command not processed?
         return -1;
@@ -231,10 +271,10 @@ int send_req_mpi3mr_bsg(int fd, int subvalue, int64_t target_sa, smp_req_resp * 
     hdr.max_response_len = sizeof(reply_m);
     hdr.response = (uintptr_t) reply_m;
 
-    hdr.dout_xfer_len = rresp->request_len + mpi3rq.request_sz;
+    hdr.dout_xfer_len = rresp->request_len + mpi3rq.m_requestLen;
     hdr.dout_xferp = (uintptr_t) request_m;
 
-    hdr.din_xfer_len = rresp->max_response_l + mpi3rq.reply_sz;
+    hdr.din_xfer_len = rresp->max_response_l + mpi3rq.m_replyLen;
     hdr.din_xferp = (uintptr_t) reply_m;
 
     hdr.timeout = DEF_TIMEOUT_MS;
@@ -246,7 +286,7 @@ int send_req_mpi3mr_bsg(int fd, int subvalue, int64_t target_sa, smp_req_resp * 
 
     int res = ioctl(fd, SG_IO, &hdr);
     if (res) {
-        perror("mpi3_request::fill_request: SG_IO ioctl");
+        perror("send_req_mpi3mr_bsg: SG_IO ioctl");
         return -1;
     }
 
@@ -261,7 +301,7 @@ int send_req_mpi3mr_bsg(int fd, int subvalue, int64_t target_sa, smp_req_resp * 
         qDebug("    din_resid=%d, dout_resid=%d", hdr.din_resid, hdr.dout_resid);
         qDebug("  smp_req_resp::max_response_len=%d act_response_len=%d", rresp->max_response_l, rresp->act_response_l);
         hex2stdout(rresp->response, rresp->act_response_l, 0);
-        hex2stdout(mpi_reply, mpi3rq.reply_sz, 1);
+        hex2stdout(mpi_reply, mpi3rq.m_replyLen, 1);
     }
 
     if (hdr.driver_status)
@@ -395,11 +435,6 @@ static int populate_adpinfo(smp_target_obj * top, int vb)
 {
     smp_req_resp smp_rr;
 
-    if (ioc_cnt >= NUM_IOC) {
-        qDebug("[%s] ioc_cnt overflow!", __func__);
-        return ioc_cnt;
-    }
-
     memset(&(adpinfo[ioc_cnt]), 0, sizeof(adpinfo[ioc_cnt]));
     memset(&smp_rr, 0, sizeof(smp_rr));
 
@@ -429,11 +464,6 @@ static int get_all_tgt_info(smp_target_obj * top, int vb)
 {
     smp_req_resp smp_rr;
 
-    if (ioc_cnt >= NUM_IOC) {
-        qDebug("[%s] ioc_cnt overflow!", __func__);
-        return ioc_cnt;
-    }
-
     memset(&(alltgt_info[ioc_cnt]), 0, sizeof(alltgt_info[ioc_cnt]));
     memset(&smp_rr, 0, sizeof(smp_rr));
 
@@ -458,16 +488,11 @@ static int get_all_tgt_info(smp_target_obj * top, int vb)
     return 0;
 }
 
-/* Returns count of ioc collected, or -1 on failure */
+/* Return: 0 on success, non-zero on failure. */
 static int issue_iocfacts(smp_target_obj * top, int vb)
 {
     struct mpi3_ioc_facts_data facts_data;
     smp_req_resp smp_rr;
-
-    if (ioc_cnt >= NUM_IOC) {
-        qDebug("[%s] ioc_cnt overflow!", __func__);
-        return ioc_cnt;
-    }
 
     memset(&facts_data, 0, sizeof(facts_data));
     memset(&smp_rr, 0, sizeof(smp_rr));
@@ -508,7 +533,46 @@ static int issue_iocfacts(smp_target_obj * top, int vb)
     ioc_facts[ioc_cnt].fw_ver.gen_minor = facts_data.fw_version.gen_minor;
     ioc_facts[ioc_cnt].fw_ver.gen_major = facts_data.fw_version.gen_major;
 
-    return ++ioc_cnt;
+    return 0;
+}
+
+/* Return: 0 on success, non-zero on failure. */
+static int cfg_get_enclosure_pg0(smp_target_obj * top, int vb)
+{
+    struct mpi3_config_page_header cfg_hdr;
+    struct mpi3_config_request cfg_req;
+    smp_req_resp smp_rr;
+
+    memset(&cfg_hdr, 0, sizeof(cfg_hdr));
+    memset(&cfg_req, 0, sizeof(cfg_req));
+    memset(&smp_rr, 0, sizeof(smp_rr));
+
+    cfg_req.function = MPI3_FUNCTION_CONFIG;
+    cfg_req.action = MPI3_CONFIG_ACTION_PAGE_HEADER;
+    cfg_req.page_type = MPI3_CONFIG_PAGETYPE_ENCLOSURE;
+    cfg_req.page_number = 0;
+    cfg_req.page_address = 0;
+
+    smp_rr.mpi3mr_function = MPI3_FUNCTION_CONFIG;
+    smp_rr.mpi3mr_object = (void*) &cfg_req;
+    smp_rr.max_response_l = sizeof(cfg_hdr);
+    smp_rr.response = (u8*) &cfg_hdr;
+
+    int res = send_req_mpi3mr_bsg(top->fd, top->subvalue, top->sas_addr64, &smp_rr, vb);
+    if (res) {
+        qDebug("[send_req_mpi3mr_bsg] failed, res=%d", res);
+        return -1;
+    }
+    if (smp_rr.transport_err) {
+        qDebug("[send_req_mpi3mr_bsg] transport_error=%d", smp_rr.transport_err);
+        return -1;
+    }
+    if (smp_rr.act_response_l != sizeof(cfg_hdr)) {
+        qDebug("[send_req_mpi3mr_bsg] ioc_facts data length mismatch");
+        return -1;
+    }
+
+    return 0;
 }
 
 void mpi3mr_iocfacts(int vb)
@@ -530,6 +594,11 @@ void mpi3mr_iocfacts(int vb)
 
     ioc_cnt = 0;
     for (k = 0; k < num; ++k) {
+        if (ioc_cnt >= NUM_IOC) {
+            qDebug("[%s] ioc_cnt overflow!", __func__);
+            break;
+        }
+
         device_name = QString("%1/%2").arg(dev_bsg, namelist[k]->d_name);
         //gAppendMessage(device_name);
         if (vb) {
@@ -546,16 +615,25 @@ void mpi3mr_iocfacts(int vb)
         if (res < 0) {
             qDebug("Exit status %d indicates error detected", res);
         }
-        //res = get_all_tgt_info(&tobj, vb);
-        //if (res < 0) {
-        //    qDebug("Exit status %d indicates error detected", res);
-        //}
+#if 0  /// remark due to being unused
+        res = get_all_tgt_info(&tobj, vb);
+        if (res < 0) {
+            qDebug("Exit status %d indicates error detected", res);
+        }
+#endif
         res = issue_iocfacts(&tobj, vb);
+        if (res < 0) {
+            qDebug("Exit status %d indicates error detected", res);
+        }
+        res = cfg_get_enclosure_pg0(&tobj, vb);
         if (res < 0) {
             qDebug("Exit status %d indicates error detected", res);
         }
 
         smp_initiator_close(&tobj);
+
+        // Add 1 to Number of Controllers
+        ++ioc_cnt;
     }
 
     for (k = 0; k < num; ++k) {

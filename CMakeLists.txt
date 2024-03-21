@@ -25,28 +25,29 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         ${PROJECT_SOURCES}
         systray.qrc
         arrows.png
+        refresh.png
+        linkrate.png
+        pokemon-go.png
+        listsdx_48.png
+        select-all.png
+        mpi30/mpi30_ioc.h
+        mpi30/mpi30_sas.h
+        mpi30/mpi30_transport.h
+        mpi30/mpi30_image.h
+        mpi30/mpi30_cnfg.h
+        mpi3mr.h
         lsscsi.cpp
         lsscsi.h
         smp_discover.cpp
         smp_discover.h
-        refresh.png
-        linkrate.png
-        pokemon-go.png
         mpi_sas.h
         mpi_type.h
         mpi.h
         mptctl.h
         mpi3mr_app.cpp
-        smp_lib.h
         mpi3mr_app.h
+        smp_lib.h
         smp_mptctl_glue.h
-        mpi30/mpi30_ioc.h
-        mpi30/mpi30_sas.h
-        mpi30/mpi30_transport.h
-        mpi30/mpi30_image.h
-        mpi3mr.h
-        listsdx_48.png
-        select-all.png
         worker.h
     )
 # Define target properties for Android with Qt 6 as:

@@ -115,6 +115,7 @@ typedef struct _smp_req_resp {
     int act_response_l;         /* [o] -1 implies don't know */
     int transport_err;          /* [o] 0 implies no error */
     unsigned int mpi3mr_function;
+    void * mpi3mr_object;
 } smp_req_resp;
 
 extern const char * dev_bsg;
