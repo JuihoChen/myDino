@@ -11,12 +11,18 @@
 #include "smp_lib.h"
 #include "widget.h"
 
+struct mpi3mr_hba_sas_exp {
+    uint64_t sas_address;
+    uint8_t rp_manufacturer[60];
+};
+
 /* Maximum number of Controllers is assumed to be 4 */
 #define NUM_IOC 4
 
 static int ioc_cnt;
 static struct mpi3mr_bsg_in_adpinfo adpinfo[NUM_IOC];
 static struct mpi3mr_ioc_facts ioc_facts[NUM_IOC];
+static struct mpi3mr_hba_sas_exp hba_sas_exp[NUM_IOC][2];
 
 struct my_all_tgt_info {
     struct mpi3mr_all_tgt_info tgt_info;
@@ -452,7 +458,7 @@ static int populate_adpinfo(smp_target_obj * top, int vb)
         return -1;
     }
     if (smp_rr.act_response_l != sizeof(adpinfo[ioc_cnt])) {
-        qDebug("[send_req_mpi3mr_bsg] ioc_facts data length mismatch");
+        qDebug("[send_req_mpi3mr_bsg] adpinfo data length mismatch");
         return -1;
     }
 
@@ -481,7 +487,7 @@ static int get_all_tgt_info(smp_target_obj * top, int vb)
         return -1;
     }
     if (smp_rr.act_response_l != sizeof(alltgt_info[ioc_cnt])) {
-        qDebug("[send_req_mpi3mr_bsg] ioc_facts data length mismatch");
+        qDebug("[send_req_mpi3mr_bsg] alltgt_info data length mismatch");
         return -1;
     }
 
@@ -536,22 +542,28 @@ static int issue_iocfacts(smp_target_obj * top, int vb)
     return 0;
 }
 
-/* Return: 0 on success, non-zero on failure. */
-static int cfg_get_enclosure_pg0(smp_target_obj * top, int vb)
+/**
+ *  @form: The form to be used for addressing the page
+ *
+ *  Return: 0 on success, non-zero on failure.
+ */
+static int cfg_get_sas_exp_pg0(smp_target_obj * top, struct mpi3_sas_expander_page0 & exp_pg0, u32 form, int vb)
 {
     struct mpi3_config_page_header cfg_hdr;
     struct mpi3_config_request cfg_req;
     smp_req_resp smp_rr;
 
+    memset(&exp_pg0, 0, sizeof(exp_pg0));
     memset(&cfg_hdr, 0, sizeof(cfg_hdr));
     memset(&cfg_req, 0, sizeof(cfg_req));
     memset(&smp_rr, 0, sizeof(smp_rr));
 
     cfg_req.function = MPI3_FUNCTION_CONFIG;
     cfg_req.action = MPI3_CONFIG_ACTION_PAGE_HEADER;
-    cfg_req.page_type = MPI3_CONFIG_PAGETYPE_ENCLOSURE;
+    cfg_req.page_type = MPI3_CONFIG_PAGETYPE_SAS_EXPANDER;
     cfg_req.page_number = 0;
-    cfg_req.page_address = 0;
+    cfg_req.page_address = form;   // 0xffff ?a hacked value (not to config???)
+    cfg_req.page_length = 0;    // page length == 0 to get page header??
 
     smp_rr.mpi3mr_function = MPI3_FUNCTION_CONFIG;
     smp_rr.mpi3mr_object = (void*) &cfg_req;
@@ -560,7 +572,7 @@ static int cfg_get_enclosure_pg0(smp_target_obj * top, int vb)
 
     int res = send_req_mpi3mr_bsg(top->fd, top->subvalue, top->sas_addr64, &smp_rr, vb);
     if (res) {
-        qDebug("[send_req_mpi3mr_bsg] failed, res=%d", res);
+        qDebug("[send_req_mpi3mr_bsg] SAS Expander page0 header read failed, res=%d", res);
         return -1;
     }
     if (smp_rr.transport_err) {
@@ -568,8 +580,104 @@ static int cfg_get_enclosure_pg0(smp_target_obj * top, int vb)
         return -1;
     }
     if (smp_rr.act_response_l != sizeof(cfg_hdr)) {
-        qDebug("[send_req_mpi3mr_bsg] ioc_facts data length mismatch");
+        qDebug("[send_req_mpi3mr_bsg] cfg_hdr data length mismatch");
         return -1;
+    }
+
+    cfg_req.action = MPI3_CONFIG_ACTION_READ_CURRENT;
+    cfg_req.page_length = sizeof(exp_pg0);
+
+    smp_rr.mpi3mr_object = (void*) &cfg_req;
+    smp_rr.max_response_l = sizeof(exp_pg0);
+    smp_rr.response = (u8*) &exp_pg0;
+
+    res = send_req_mpi3mr_bsg(top->fd, top->subvalue, top->sas_addr64, &smp_rr, vb);
+    if (res) {
+        qDebug("[send_req_mpi3mr_bsg] SAS Expander page0 read failed, res=%d", res);
+        return -1;
+    }
+    if (smp_rr.transport_err) {
+        qDebug("[send_req_mpi3mr_bsg] transport_error=%d", smp_rr.transport_err);
+        return -1;
+    }
+    if (smp_rr.act_response_l != sizeof(exp_pg0)) {
+        qDebug("[send_req_mpi3mr_bsg] exp_pg0 data length mismatch");
+        return -1;
+    }
+
+    if (vb) {
+        qDebug("found sas expander wwid=%llx", exp_pg0.sas_address);
+    }
+
+    return 0;
+}
+
+static int smp_report_manufacturer(smp_target_obj * top, uint8_t * rp, int rp_len, int vb)
+{
+    uint8_t smp_req[] = {SMP_FRAME_TYPE_REQ, SMP_FN_REPORT_MANUFACTURER, 0, 0};
+    smp_req_resp smp_rr;
+
+    if (vb) {
+        QString msg = "    Report manufacturer request: ";
+        for (int k = 0; k < (int)sizeof(smp_req); ++k)
+            msg += QString::asprintf("%02x ", smp_req[k]);
+        qDebug() << msg;
+    }
+    memset(&smp_rr, 0, sizeof(smp_rr));
+    smp_rr.mpi3mr_function = MPI3_FUNCTION_SMP_PASSTHROUGH;
+    smp_rr.request = smp_req;
+    smp_rr.request_len = sizeof(smp_req);
+    smp_rr.max_response_l = rp_len;
+    smp_rr.response = rp;
+
+    int res = send_req_mpi3mr_bsg(top->fd, top->subvalue, top->sas_addr64, &smp_rr, vb);
+    if (res) {
+        qDebug("RM send_req_mpi3mr_bsg failed, res=%d", res);
+        return -1;
+    }
+    if (smp_rr.transport_err) {
+        qDebug("RM send_req_mpi3mr_bsg transport_error=%d", smp_rr.transport_err);
+        return -1;
+    }
+    int act_resplen = smp_rr.act_response_l;
+    if ((act_resplen >= 0) && (act_resplen < 4)) {
+        qDebug("RM response too short, len=%d", act_resplen);
+        return -4 - SMP_LIB_CAT_MALFORMED;
+    }
+    int len = rp[3];
+    if ((0 == len) && (0 == rp[2])) {
+        len = smp_get_func_def_resp_len(rp[1]);
+        if (len < 0) {
+            len = 0;
+            if (vb)
+                qDebug("unable to determine RM response length");
+        }
+    }
+    len = 4 + (len * 4);        /* length in bytes, excluding 4 byte CRC */
+    if ((act_resplen >= 0) && (len > act_resplen)) {
+        if (vb)
+            qDebug("actual RM response length [%d] less than deduced length [%d]", act_resplen, len);
+    }
+    /* ignore --hex and --raw */
+    if (SMP_FRAME_TYPE_RESP != rp[0]) {
+        qDebug("RM expected SMP frame response type, got=0x%x", rp[0]);
+        return -4 - SMP_LIB_CAT_MALFORMED;
+    }
+    if (rp[1] != smp_req[1]) {
+        qDebug("RM Expected function code=0x%x, got=0x%x", smp_req[1], rp[1]);
+        return -4 - SMP_LIB_CAT_MALFORMED;
+    }
+    if (rp[2]) {
+        if (vb) {
+            char b[256];
+            char * cp = smp_get_func_res_str(rp[2], sizeof(b), b);
+            qDebug("Report Manufacturer result: %s", cp);
+        }
+        return -4 - rp[2];
+    }
+
+    if (vb) {
+        qDebug("FwVersion 0%c.0%c.0%c.0%c", rp[36], rp[37], rp[38], rp[39]);
     }
 
     return 0;
@@ -625,9 +733,37 @@ void mpi3mr_iocfacts(int vb)
         if (res < 0) {
             qDebug("Exit status %d indicates error detected", res);
         }
-        res = cfg_get_enclosure_pg0(&tobj, vb);
+        /*
+         * Clear WWID before expander query on HBA
+         */
+        hba_sas_exp[ioc_cnt][0].sas_address = hba_sas_exp[ioc_cnt][1].sas_address = 0;
+        struct mpi3_sas_expander_page0 exp_pg0;
+        int e = 0;
+        int len = sizeof(hba_sas_exp[0][0].rp_manufacturer);
+        res = cfg_get_sas_exp_pg0(&tobj, exp_pg0, MPI3_SAS_EXPAND_PGAD_HANDLE_MASK, vb);
         if (res < 0) {
             qDebug("Exit status %d indicates error detected", res);
+        } else {
+            if (exp_pg0.sas_address != 0) {
+                tobj.sas_addr64 = hba_sas_exp[ioc_cnt][e].sas_address = exp_pg0.sas_address;
+                res = smp_report_manufacturer(&tobj, hba_sas_exp[ioc_cnt][e].rp_manufacturer, len, vb);
+                if (res < 0) {
+                    qDebug("Exit status %d indicates error detected", res);
+                }
+                ++e;
+            }
+        }
+        res = cfg_get_sas_exp_pg0(&tobj, exp_pg0, 0x0003, vb);
+        if (res < 0) {
+            qDebug("Exit status %d indicates error detected", res);
+        } else {
+            if (exp_pg0.sas_address != 0 && exp_pg0.sas_address != hba_sas_exp[ioc_cnt][0].sas_address) {
+                tobj.sas_addr64 = hba_sas_exp[ioc_cnt][e].sas_address = exp_pg0.sas_address;
+                res = smp_report_manufacturer(&tobj, hba_sas_exp[ioc_cnt][e].rp_manufacturer, len, vb);
+                if (res < 0) {
+                    qDebug("Exit status %d indicates error detected", res);
+                }
+            }
         }
 
         smp_initiator_close(&tobj);
@@ -659,6 +795,23 @@ QString get_infofacts()
                 fwver->gen_major, fwver->gen_minor, fwver->ph_major, fwver->ph_minor,
                 fwver->cust_id, fwver->build_num,
                 mpiver->major, mpiver->minor);
+
+        if (0 != hba_sas_exp[i][0].sas_address) {
+            s += QString::asprintf("EXP (%lX) Firmware Version: 0%c.0%c.0%c.0%c",
+                    hba_sas_exp[i][0].sas_address,
+                    hba_sas_exp[i][0].rp_manufacturer[36],
+                    hba_sas_exp[i][0].rp_manufacturer[37],
+                    hba_sas_exp[i][0].rp_manufacturer[38],
+                    hba_sas_exp[i][0].rp_manufacturer[39]);
+        }
+        if (0 != hba_sas_exp[i][1].sas_address) {
+            s += QString::asprintf(",  EXP (%lX) Firmware Version: 0%c.0%c.0%c.0%c\n",
+                    hba_sas_exp[i][1].sas_address,
+                    hba_sas_exp[i][1].rp_manufacturer[36],
+                    hba_sas_exp[i][1].rp_manufacturer[37],
+                    hba_sas_exp[i][1].rp_manufacturer[38],
+                    hba_sas_exp[i][1].rp_manufacturer[39]);
+        }
     }
     return s;
 }

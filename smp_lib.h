@@ -131,6 +131,9 @@ int smp_initiator_close(smp_target_obj * tobj);
  * argument: uint8_t instead of char. The name of the argument is changed
  * to b_str to stress it is a pointer to the start of a binary string. */
 void hex2stdout(void * str, int len, int no_ascii);
+/* SMP utilities */
+int smp_get_func_def_resp_len(int func_code);
+char * smp_get_func_res_str(int func_res, int buff_len, char * buff);
 
 #ifdef __cplusplus
 }

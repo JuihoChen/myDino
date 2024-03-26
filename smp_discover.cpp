@@ -605,7 +605,7 @@ smp_send_req(const smp_target_obj * tobj, smp_req_resp * rresp, int vb)
     }
 }
 
-static int
+int
 smp_get_func_def_resp_len(int func_code)
 {
     struct smp_func_def_rrlen * drlp;
@@ -617,7 +617,7 @@ smp_get_func_def_resp_len(int func_code)
     return -1;
 }
 
-static char *
+char *
 smp_get_func_res_str(int func_res, int buff_len, char * buff)
 {
     struct smp_val_name * vnp;
