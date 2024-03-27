@@ -16,13 +16,13 @@ struct mpi3mr_hba_sas_exp {
     uint8_t rp_manufacturer[60];
 };
 
-/* Maximum number of Controllers is assumed to be 4 */
-#define NUM_IOC 4
+#define NUM_IOC 4           /* Maximum number of Controllers is assumed to be 4 */
+#define NUM_EXP_PER_HBA 4   /* Max number of SAS Expander per Controller (HBA) */
 
 static int ioc_cnt;
 static struct mpi3mr_bsg_in_adpinfo adpinfo[NUM_IOC];
 static struct mpi3mr_ioc_facts ioc_facts[NUM_IOC];
-static struct mpi3mr_hba_sas_exp hba_sas_exp[NUM_IOC][2];
+static struct mpi3mr_hba_sas_exp hba_sas_exp[NUM_IOC][NUM_EXP_PER_HBA];
 
 struct my_all_tgt_info {
     struct mpi3mr_all_tgt_info tgt_info;
@@ -605,8 +605,11 @@ static int cfg_get_sas_exp_pg0(smp_target_obj * top, struct mpi3_sas_expander_pa
         return -1;
     }
 
+    /**
+     * exp_pg0.dev_handle turns to be the handle (form's value) of the next sas expander page0 request
+     */
     if (vb) {
-        qDebug("found sas expander wwid=%llx", exp_pg0.sas_address);
+        qDebug("found sas expander wwid=%llx with dev_handle=0x%04x", exp_pg0.sas_address, exp_pg0.dev_handle);
     }
 
     return 0;
@@ -733,35 +736,33 @@ void mpi3mr_iocfacts(int vb)
         if (res < 0) {
             qDebug("Exit status %d indicates error detected", res);
         }
-        /*
-         * Clear WWID before expander query on HBA
+        /**
+         * Clear WWID before sas expander query on HBA
          */
-        hba_sas_exp[ioc_cnt][0].sas_address = hba_sas_exp[ioc_cnt][1].sas_address = 0;
+        memset(hba_sas_exp, 0, sizeof(hba_sas_exp));
+        /**
+         * By hacking, 'form' value gets started with a value 0xffff
+         */
+        u16 handle = 0xffff;
         struct mpi3_sas_expander_page0 exp_pg0;
-        int e = 0;
         int len = sizeof(hba_sas_exp[0][0].rp_manufacturer);
-        res = cfg_get_sas_exp_pg0(&tobj, exp_pg0, MPI3_SAS_EXPAND_PGAD_HANDLE_MASK, vb);
-        if (res < 0) {
-            qDebug("Exit status %d indicates error detected", res);
-        } else {
-            if (exp_pg0.sas_address != 0) {
-                tobj.sas_addr64 = hba_sas_exp[ioc_cnt][e].sas_address = exp_pg0.sas_address;
-                res = smp_report_manufacturer(&tobj, hba_sas_exp[ioc_cnt][e].rp_manufacturer, len, vb);
-                if (res < 0) {
-                    qDebug("Exit status %d indicates error detected", res);
-                }
-                ++e;
-            }
-        }
-        res = cfg_get_sas_exp_pg0(&tobj, exp_pg0, 0x0003, vb);
-        if (res < 0) {
-            qDebug("Exit status %d indicates error detected", res);
-        } else {
-            if (exp_pg0.sas_address != 0 && exp_pg0.sas_address != hba_sas_exp[ioc_cnt][0].sas_address) {
-                tobj.sas_addr64 = hba_sas_exp[ioc_cnt][e].sas_address = exp_pg0.sas_address;
-                res = smp_report_manufacturer(&tobj, hba_sas_exp[ioc_cnt][e].rp_manufacturer, len, vb);
-                if (res < 0) {
-                    qDebug("Exit status %d indicates error detected", res);
+        for (int e = 0; e < NUM_EXP_PER_HBA; ++e) {
+            res = cfg_get_sas_exp_pg0(&tobj, exp_pg0, handle, vb);
+            if (res < 0) {
+                qDebug("Exit status %d indicates error detected", res);
+            } else {
+                if (exp_pg0.sas_address == 0) {
+                    break;
+                } else {
+                    tobj.sas_addr64 = hba_sas_exp[ioc_cnt][e].sas_address = exp_pg0.sas_address;
+                    res = smp_report_manufacturer(&tobj, hba_sas_exp[ioc_cnt][e].rp_manufacturer, len, vb);
+                    if (res < 0) {
+                        qDebug("Exit status %d indicates error detected", res);
+                    }
+                    /**
+                     * By hacking, new 'form' value is derived from exp_pg0.dev_handle
+                     */
+                    handle = exp_pg0.dev_handle;
                 }
             }
         }
