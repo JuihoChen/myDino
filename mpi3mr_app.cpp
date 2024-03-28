@@ -338,7 +338,7 @@ void mpi3mr_discover(int vb)
     if (vb)
         qDebug("Discovering...");
 
-    num = scandir(dev_bsg, &namelist, mpi3mrdev_scan_select, nullptr);
+    num = scandir(dev_bsg, &namelist, mpi3mrdev_scan_select, alphasort);
     if (num <= 0) {  /* HBA mid level may not be loaded */
         perror("scandir");
         gAppendMessage("HBA mid level module may not be loaded.");
@@ -353,7 +353,7 @@ void mpi3mr_discover(int vb)
         }
 
         // assign the IOC number for multiple adapters case
-        res = smp_initiator_open(device_name, k, I_SGV4_MPI, &tobj, vb);
+        res = smp_initiator_open(device_name, I_SGV4_MPI, &tobj, vb);
         if (res < 0) {
             continue;
         }
@@ -383,57 +383,38 @@ void mpi3mr_discover(int vb)
 
 void mpi3mr_slot_discover(int vb)
 {
-    int num, k, res;
-    struct dirent ** namelist;
+    int res;
     smp_target_obj tobj;
-    QString device_name;
-
+    /**
+     * Explore HBA and expander firstly
+     */
+    mpi3mr_iocfacts(vb);
+    /**
+     * Then, explore slots as usual
+     */
     if (vb)
         qDebug("Slot discovering...");
 
-    num = scandir(dev_bsg, &namelist, mpi3mrdev_scan_select, alphasort);
-    if (num <= 0) {  /* HBA mid level may not be loaded */
-        perror("scandir");
-        gAppendMessage("HBA mid level module may not be loaded.");
-        return;
-    }
-
-    for (k = 0; k < num; ++k) {
-        device_name = QString("%1/%2").arg(dev_bsg, namelist[k]->d_name);
-        if (vb) {
-            qDebug() << "----> exploring " << device_name;
-        }
-
-        // assign the IOC number for multiple adapters case
-        res = smp_initiator_open(device_name, k, I_SGV4_MPI, &tobj, vb);
-        if (res < 0) {
-            continue;
-        }
-
-        for (int i = 0; i < 4; ++i) {
-            // check if the next expander is to be discovered
-            if (true == gControllers.bsgPath(i).isEmpty()) {
-                // assign sas address for path-through
-                tobj.sas_addr64 = gControllers.wwid64(i);
-                if (0 != tobj.sas_addr64) {
-                    if (vb) {
-                        qDebug("   -> with SAS address=0x%lx", tobj.sas_addr64);
-                    }
-                    res = do_multiple_slot(&tobj, vb);
-                    if (res) {
-                        qDebug("Exit status %d indicates error detected", res);
-                    }
-                }
+    for (int k = 0; k < NEXPDR; ++k) {
+        if (false == gControllers.bsgPath(k).isEmpty()) {
+            // assign the IOC number for multiple adapters case
+            res = smp_initiator_open(gControllers.bsgPath(k), I_SGV4_MPI, &tobj, vb);
+            if (res < 0) {
+                qDebug() << "Failed to open driver " << gControllers.bsgPath(k);
+                continue;
             }
+            // assign sas address for path-through
+            tobj.sas_addr64 = gControllers.wwid64(k);
+            if (vb) {
+                qDebug("----> exploring SAS address=0x%lx", tobj.sas_addr64);
+            }
+            res = do_multiple_slot(&tobj, vb);
+            if (res) {
+                qDebug("Exit status %d indicates error detected", res);
+            }
+            smp_initiator_close(&tobj);
         }
-
-        smp_initiator_close(&tobj);
     }
-
-    for (k = 0; k < num; ++k) {
-        free(namelist[k]);
-    }
-    free(namelist);
 }
 
 /* Get adapter info command handler */
@@ -693,10 +674,18 @@ void mpi3mr_iocfacts(int vb)
     smp_target_obj tobj;
     QString device_name;
 
-    if (vb)
+    if (vb) {
         qDebug("MPI function: get IOC FACTS...");
+    }
+    /**
+     * Clear information before query on HBA
+     */
+    memset(adpinfo, 0, sizeof(adpinfo));
+    memset(ioc_facts, 0, sizeof(ioc_facts));
+    memset(hba_sas_exp, 0, sizeof(hba_sas_exp));
+    memset(alltgt_info, 0, sizeof(alltgt_info));
 
-    num = scandir(dev_bsg, &namelist, mpi3mrdev_scan_select, nullptr);
+    num = scandir(dev_bsg, &namelist, mpi3mrdev_scan_select, alphasort);
     if (num <= 0) {  /* HBA mid level may not be loaded */
         perror("scandir");
         gAppendMessage("HBA mid level module may not be loaded.");
@@ -717,7 +706,7 @@ void mpi3mr_iocfacts(int vb)
         }
 
         // assign the IOC number for multiple adapters case
-        res = smp_initiator_open(device_name, k, I_SGV4_MPI, &tobj, vb);
+        res = smp_initiator_open(device_name, I_SGV4_MPI, &tobj, vb);
         if (res < 0) {
             continue;
         }
@@ -737,10 +726,6 @@ void mpi3mr_iocfacts(int vb)
             qDebug("Exit status %d indicates error detected", res);
         }
         /**
-         * Clear WWID before sas expander query on HBA
-         */
-        memset(hba_sas_exp, 0, sizeof(hba_sas_exp));
-        /**
          * By hacking, 'form' value gets started with a value 0xffff
          */
         u16 handle = 0xffff;
@@ -759,6 +744,10 @@ void mpi3mr_iocfacts(int vb)
                     if (res < 0) {
                         qDebug("Exit status %d indicates error detected", res);
                     }
+                    /**
+                     * Register the BSG path in the expander just explored
+                     */
+                    gControllers.setBsgPath(tobj.device_name, exp_pg0.sas_address);
                     /**
                      * By hacking, new 'form' value is derived from exp_pg0.dev_handle
                      */
@@ -784,35 +773,39 @@ QString get_infofacts()
     QString s;
 
     for (int i = 0; i < ioc_cnt; i++) {
-        s += QString::asprintf("%s (PCIAddr %02X:%02X:%02X.%02X), Driver Version: %s\n",
-                adpinfo[i].driver_info.driver_name,
-                adpinfo[i].pci_seg_id, adpinfo[i].pci_bus, adpinfo[i].pci_dev, adpinfo[i].pci_func,
-                adpinfo[i].driver_info.driver_version);
+        if (0 == i) {
+            s += QString::asprintf("%s, Driver Version: %s\n",
+                    adpinfo[i].driver_info.driver_name, adpinfo[i].driver_info.driver_version);
+        }
 
         struct mpi3mr_compimg_ver *fwver = &ioc_facts[i].fw_ver;
         struct mpi3_version_struct *mpiver = (struct mpi3_version_struct *) &ioc_facts[i].mpi_version;
-        s += QString::asprintf("HBA (%x), Firmware Version: %d.%d.%d.%d-%05d-%05d, MPI Version: %d.%d\n",
-                ioc_facts[i].product_id,
-                fwver->gen_major, fwver->gen_minor, fwver->ph_major, fwver->ph_minor,
-                fwver->cust_id, fwver->build_num,
+        s += QString::asprintf("HBA (PCIAddr %02X:%02X:%02X.%02X), Firmware Version: %d.%d.%d.%d-%05d-%05d, MPI Version: %d.%d\n",
+                adpinfo[i].pci_seg_id, adpinfo[i].pci_bus, adpinfo[i].pci_dev, adpinfo[i].pci_func,
+                fwver->gen_major, fwver->gen_minor, fwver->ph_major, fwver->ph_minor, fwver->cust_id, fwver->build_num,
                 mpiver->major, mpiver->minor);
 
-        if (0 != hba_sas_exp[i][0].sas_address) {
-            s += QString::asprintf("EXP (%lX) Firmware Version: 0%c.0%c.0%c.0%c",
-                    hba_sas_exp[i][0].sas_address,
-                    hba_sas_exp[i][0].rp_manufacturer[36],
-                    hba_sas_exp[i][0].rp_manufacturer[37],
-                    hba_sas_exp[i][0].rp_manufacturer[38],
-                    hba_sas_exp[i][0].rp_manufacturer[39]);
+        for (int e = 0; e < NUM_EXP_PER_HBA; e += 2) {
+            if (0 != hba_sas_exp[i][e].sas_address) {
+                s += QString::asprintf("EXP (%lX) FW: 0%c.0%c.0%c.0%c",
+                        hba_sas_exp[i][e].sas_address,
+                        hba_sas_exp[i][e].rp_manufacturer[36], hba_sas_exp[i][e].rp_manufacturer[37],
+                        hba_sas_exp[i][e].rp_manufacturer[38], hba_sas_exp[i][e].rp_manufacturer[39]);
+                /* The right part output depends on the left part */
+                if (0 != hba_sas_exp[i][e+1].sas_address) {
+                    s += QString::asprintf(",  EXP (%lX) FW: 0%c.0%c.0%c.0%c\n",
+                            hba_sas_exp[i][e+1].sas_address,
+                            hba_sas_exp[i][e+1].rp_manufacturer[36], hba_sas_exp[i][e+1].rp_manufacturer[37],
+                            hba_sas_exp[i][e+1].rp_manufacturer[38], hba_sas_exp[i][e+1].rp_manufacturer[39]);
+                } else s += "\n";
+            }
         }
-        if (0 != hba_sas_exp[i][1].sas_address) {
-            s += QString::asprintf(",  EXP (%lX) Firmware Version: 0%c.0%c.0%c.0%c\n",
-                    hba_sas_exp[i][1].sas_address,
-                    hba_sas_exp[i][1].rp_manufacturer[36],
-                    hba_sas_exp[i][1].rp_manufacturer[37],
-                    hba_sas_exp[i][1].rp_manufacturer[38],
-                    hba_sas_exp[i][1].rp_manufacturer[39]);
-        }
+    }
+    /**
+     * Remove '\n' character from the end of the string.
+     */
+    if (false == s.isEmpty()) {
+        s.chop(1);
     }
     return s;
 }

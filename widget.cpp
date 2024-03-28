@@ -15,8 +15,6 @@
 #include "smp_discover.h"
 #include "mpi3mr_app.h"
 
-#define WWID_TO_INDEX(wwid) ((wwid & 0xFF) >> 6)
-
 extern int verbose;
 
 static QTabWidget * gTab = nullptr;
@@ -89,11 +87,6 @@ void DeviceFunc::setSlot(QString dir_name, QString device, QString expander, uin
     }
     sl = (WWID_TO_INDEX(wwid) + 1) * NSLOT_PEREXP - sl;
     setSlot(dir_name, device, sl);
-}
-
-void DeviceFunc::setSlot(QString dir_name, QString device, QString enclosure_device_name)
-{
-    setSlot(dir_name, device, enclosure_device_name.right(2).toShort(0, 16) - 1);
 }
 
 void DeviceFunc::setDiscoverResp(int dsn, uchar * src, int len)
@@ -170,7 +163,6 @@ void ExpanderFunc::clear()
         GboxInfo[i].gbox->setTitle(QString("Expander-%1").arg(i+1));
         GboxInfo[i].d_name.clear();
         GboxInfo[i].bsg_path.clear();
-        GboxInfo[i].ioc_num = 0;;
         GboxInfo[i].wwid64 = 0;;
         GboxInfo[i].resp_len = 0;
     }
@@ -191,15 +183,17 @@ void ExpanderFunc::setController(QString expander, uint64_t wwid)
     myCount++;
 }
 
-void ExpanderFunc::setDiscoverResp(QString path, int subvalue, uint64_t ull, uint64_t sa, uchar * src, int len)
+void ExpanderFunc::setDiscoverResp(QString path, uint64_t ull, uint64_t sa, uchar * src, int len)
 {
     int el = WWID_TO_INDEX(ull);
 
-    // save the working path for later use cases
+    // save the working path for later usages
     GboxInfo[el].bsg_path = path;
 
-    // save the IOC number for the very Controller's ID
-    GboxInfo[el].ioc_num = subvalue;
+    /**
+     * IOC number is just derived from the trailing digit of bsg_path
+     */
+    //GboxInfo[el].ioc_num = subvalue;
 
     // src area is bigger than discover_resp and zero set before discovery
     memcpy(GboxInfo[el].discover_resp, src, SMP_FN_DISCOVER_RESP_LEN);
@@ -354,7 +348,7 @@ void Widget::sdxlist_sit(QTextStream & stream, int sl)
     Q_UNUSED(sl);
 
     // loop through the expanders discovered
-    for (int k = 0; k < 4; ++k) {
+    for (int k = 0; k < NEXPDR; ++k) {
         stream << "Expander-" << k+1 << Qt::endl;
         if (false == gControllers.bsgPath(k).isEmpty()) {
             // bool value to determine if a colon to follow
@@ -402,7 +396,7 @@ void Widget::sdxlist_wl1(QTextStream & stream, int sl)
     int jobn = 0;
 
     // loop through the expanders discovered
-    for (int k = 0; k < 4; ++k) {
+    for (int k = 0; k < NEXPDR; ++k) {
         stream << "## Expander-" << k+1 << Qt::endl;
         if (false == gControllers.bsgPath(k).isEmpty()) {
             // Workload 1
@@ -441,7 +435,7 @@ void Widget::sdxlist_wl2(QTextStream & stream, int sl)
     int jobn = 0;
 
     // loop through the expanders discovered
-    for (int k = 0; k < 4; ++k) {
+    for (int k = 0; k < NEXPDR; ++k) {
         stream << "## Expander-" << k+1 << Qt::endl;
         if (false == gControllers.bsgPath(k).isEmpty()) {
             // Workload 2
@@ -604,7 +598,7 @@ void Widget::autofio_wls(int wl)
                     setFanDuty(fd[l]);
 
                     // loop through the expanders discovered
-                    for (int k = 0; k < 4; ++k) {
+                    for (int k = 0; k < NEXPDR; ++k) {
                         appendMessage(QString::asprintf("## Expander-%d", k+1));
                         if (false == gControllers.bsgPath(k).isEmpty()) {
                             // Workload 1
@@ -827,7 +821,7 @@ void Widget::btnFio2GoClicked()
             int jobn = 0;
 
             // loop through the expanders discovered
-            for (int k = 0; k < 4; ++k) {
+            for (int k = 0; k < NEXPDR; ++k) {
                 stream << "## Expander-" << k+1 << Qt::endl;
                 if (false == gControllers.bsgPath(k).isEmpty()) {
                     // Workload 1
@@ -897,7 +891,6 @@ void Widget::tabSelected()
             ui->textInfo->append("HBA is 9500");
             break;
         }
-        mpi3mr_iocfacts(verbose);
         ui->textInfo->append(get_infofacts());
         // Scroll QTextBrowser to the top
         QTextCursor cursor = ui->textInfo->textCursor();
@@ -922,7 +915,7 @@ int Widget::phySetDisabled(bool disable)
     int k, i, ret = 0;
 
     // loop through the expanders discovered
-    for (k = 0; k < 4; ++k) {
+    for (k = 0; k < NEXPDR; ++k) {
         if (false == gControllers.bsgPath(k).isEmpty()) {
             if (verbose) {
                 qDebug() << "----> phy controlling " << gControllers.bsgPath(k);
@@ -936,7 +929,7 @@ int Widget::phySetDisabled(bool disable)
                     if (0 == tobj.opened) {
                         IntfEnum sel = hba9500 ? I_SGV4 : I_SGV4_MPI;
                         // assign the IOC number for multiple adapters case
-                        int res = smp_initiator_open(gControllers.bsgPath(k), gControllers.subvalue(k), sel, &tobj, verbose);
+                        int res = smp_initiator_open(gControllers.bsgPath(k), sel, &tobj, verbose);
                         if (res < 0) {
                             break;
                         }

@@ -123,7 +123,7 @@ extern const char * dev_mpt;
 
 /* Open device_name and if successful places context information in the object pointed
  * to by tobj . Returns 0 on success, else -1 . */
-int smp_initiator_open(QString device_name, int subvalue, IntfEnum sel, smp_target_obj * tobj, int verbose);
+int smp_initiator_open(QString device_name, IntfEnum sel, smp_target_obj * tobj, int verbose);
 /* Closes the context to the SMP target referred to by tobj. Returns 0
  * on success, else -1 . */
 int smp_initiator_close(smp_target_obj * tobj);

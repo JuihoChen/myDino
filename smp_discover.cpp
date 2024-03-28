@@ -1073,12 +1073,14 @@ open_mpt_device(QString dev_name, int vb)
 }
 
 int
-smp_initiator_open(QString device_name, int subvalue, IntfEnum sel, smp_target_obj * tobj, int vb)
+smp_initiator_open(QString device_name, IntfEnum sel, smp_target_obj * tobj, int vb)
 {
     int res = 0;
     tobj->opened = 0;
-    // It's silly to "memset" a struct with QString elements
-    //memset(tobj, 0, sizeof(struct smp_target_obj));
+    /**
+     * It's silly to just "memset" a struct with QString elements, e.g.
+     * memset(tobj, 0, sizeof(struct smp_target_obj));
+     */
 
     try {
         if (I_SGV4 == sel || I_SGV4_MPI == sel) {
@@ -1096,6 +1098,15 @@ smp_initiator_open(QString device_name, int subvalue, IntfEnum sel, smp_target_o
     } catch (...) {
         gAppendMessage(QString("failed to open ") + device_name);
         return res;
+    }
+
+    /**
+     * extract io_num directly from the last digit of device driver name
+     */
+    int subvalue = 0;
+    QChar last = device_name.back();
+    if (last.isDigit()) {
+        subvalue = last.digitValue();
     }
 
     tobj->device_name = device_name;
@@ -1174,7 +1185,7 @@ smp_discover(int vb)
         }
 
         // Do not assign the IOC number due to issuing command directly to the expander
-        res = smp_initiator_open(device_name, 0, I_SGV4, &tobj, vb);
+        res = smp_initiator_open(device_name, I_SGV4, &tobj, vb);
         if (res < 0) {
             continue;
         }
@@ -1204,7 +1215,7 @@ mpt_discover(int vb)
     if (vb)
         qDebug("Discovering...");
 
-    num = scandir(dev_mpt, &namelist, mptdev_scan_select, nullptr);
+    num = scandir(dev_mpt, &namelist, mptdev_scan_select, alphasort);
     if (num <= 0) {  /* HBA mid level may not be loaded */
         perror("scandir");
         gAppendMessage("HBA mid level module may not be loaded.");
@@ -1219,7 +1230,7 @@ mpt_discover(int vb)
         }
 
         // assign the IOC number for multiple adapters case
-        res = smp_initiator_open(device_name, k, I_MPT, &tobj, vb);
+        res = smp_initiator_open(device_name, I_MPT, &tobj, vb);
         if (res < 0) {
             continue;
         }
@@ -1302,7 +1313,7 @@ do_multiple_slot(smp_target_obj * top, int vb)
             }
             if (0 != sa && 0 == hba_sa) {
                 hba_sa = sa;
-                gControllers.setDiscoverResp(top->device_name, top->subvalue, ull, sa, rp, len);
+                gControllers.setDiscoverResp(top->device_name, ull, sa, rp, len);
             }
         } else {
             /* Device Slot Number */
@@ -1342,7 +1353,7 @@ slot_discover(int vb)
         }
 
         // Do not assign the IOC number due to issuing command directly to the expander
-        res = smp_initiator_open(device_name, 0, I_SGV4, &tobj, vb);
+        res = smp_initiator_open(device_name, I_SGV4, &tobj, vb);
         if (res < 0) {
             continue;
         }

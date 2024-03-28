@@ -19,6 +19,8 @@ QT_END_NAMESPACE
 #define NSLOT_PEREXP 28
 #define NSLOT (NEXPDR * NSLOT_PEREXP)
 
+#define WWID_TO_INDEX(wwid) ((wwid & 0xFF) >> 6)
+
 typedef enum {
     SMP = 0,
     SG3,
@@ -49,7 +51,9 @@ public:
 
     void clear(bool uncheck);
     void setSlot(QString dir_name, QString device, QString expander, uint64_t wwid);
-    void setSlot(QString dir_name, QString device, QString enclosure_device_name);
+    void setSlot(QString dir_name, QString device, QString enclosure_device_name) {
+        setSlot(dir_name, device, enclosure_device_name.right(2).toShort(0, 16) - 1);
+    }
     void setDiscoverResp(int dsn, uchar * src, int len);
     void setSlotLabel(int sl);
     bool slotVacant(int sl) { return (sl == valiIndex(sl)) ? SlotInfo[sl].d_name.isEmpty() : false; }
@@ -89,7 +93,6 @@ typedef struct ST_GBOXINFO {
     QGroupBox * gbox;
     QString d_name;
     QString bsg_path;
-    int ioc_num;
     uint64_t wwid64;
     uchar discover_resp[SMP_FN_DISCOVER_RESP_LEN];
     int resp_len;
@@ -103,12 +106,12 @@ public:
 
     void clear();
     void setController(QString expander, uint64_t wwid);
-    void setDiscoverResp(QString path, int subvalue, uint64_t ull, uint64_t sa, uchar * src, int len);
+    void setDiscoverResp(QString path, uint64_t ull, uint64_t sa, uchar * src, int len);
+    void setBsgPath(QString path, uint64_t ull) { GboxInfo[WWID_TO_INDEX(ull)].bsg_path = path; }
     int count() { return myCount; }
 
     QGroupBox *& gbThe(int el) { return (el == valiIndex(el)) ? GboxInfo[el].gbox : dummyGbox(); }
     const QString& bsgPath(int el) { return (el == valiIndex(el)) ? GboxInfo[el].bsg_path : dummyGboxInfo.bsg_path; }
-    const int subvalue(int el) { return (el == valiIndex(el)) ? GboxInfo[el].ioc_num : dummyGboxInfo.ioc_num; }
     uint64_t wwid64(int el) { return (el == valiIndex(el)) ? GboxInfo[el].wwid64 : dummyGboxInfo.wwid64; }
 
 private:
@@ -130,7 +133,7 @@ private:
     }
 
 private:
-    _ST_GBOXINFO dummyGboxInfo = { .gbox = nullptr, .ioc_num = -1, .resp_len = 0 };
+    _ST_GBOXINFO dummyGboxInfo = { .gbox = nullptr, .resp_len = 0 };
     _ST_GBOXINFO GboxInfo[NEXPDR];
     int myCount;
 };
