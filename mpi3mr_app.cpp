@@ -12,6 +12,8 @@
 #include "widget.h"
 
 struct mpi3mr_hba_sas_exp {
+    uint64_t enclosure_logical_id;
+    u16 sep_dev_handle;
     uint64_t sas_address;
     uint8_t rp_manufacturer[60];
 };
@@ -64,7 +66,7 @@ private:
     int m3r_populate_adpinfo();
     int m3r_get_all_tgt_info();
     int m3r_issue_iocfacts();
-    int process_cfg_req();
+    int m3r_process_cfg_req();
     int m3r_smp_passthrough();
 
 private:
@@ -96,7 +98,7 @@ int mpi3_request::fill_request()
     case MPI3_FUNCTION_IOC_FACTS:
         return m3r_issue_iocfacts();
     case MPI3_FUNCTION_CONFIG:
-        return process_cfg_req();
+        return m3r_process_cfg_req();
     case MPI3_FUNCTION_SMP_PASSTHROUGH:
         return m3r_smp_passthrough();
     default:
@@ -193,7 +195,7 @@ int mpi3_request::m3r_issue_iocfacts()
     return (long) & mbp.cmd.mptcmd.buf_entry_list.buf_entry[m_ecnt] - (long) & mbp;
 }
 
-int mpi3_request::process_cfg_req()
+int mpi3_request::m3r_process_cfg_req()
 {
     struct mpi3_config_request * mpi_request;
     struct dummy_reply { char dummy[21]; };
@@ -528,6 +530,80 @@ static int issue_iocfacts(smp_target_obj * top, int vb)
  *
  *  Return: 0 on success, non-zero on failure.
  */
+static int cfg_get_enclosure_pg0(smp_target_obj * top, struct mpi3_enclosure_page0 & encl_pg0, u32 form, int vb)
+{
+    struct mpi3_config_page_header cfg_hdr;
+    struct mpi3_config_request cfg_req;
+    smp_req_resp smp_rr;
+
+    memset(&encl_pg0, 0, sizeof(encl_pg0));
+    memset(&cfg_hdr, 0, sizeof(cfg_hdr));
+    memset(&cfg_req, 0, sizeof(cfg_req));
+    memset(&smp_rr, 0, sizeof(smp_rr));
+
+    cfg_req.function = MPI3_FUNCTION_CONFIG;
+    cfg_req.action = MPI3_CONFIG_ACTION_PAGE_HEADER;
+    cfg_req.page_type = MPI3_CONFIG_PAGETYPE_ENCLOSURE;
+    cfg_req.page_number = 0;
+    cfg_req.page_address = form;   // 0xffff ?a hacked value (not to config???)
+    cfg_req.page_length = 0;    // page length == 0 to get page header??
+
+    smp_rr.mpi3mr_function = MPI3_FUNCTION_CONFIG;
+    smp_rr.mpi3mr_object = (void*) &cfg_req;
+    smp_rr.max_response_l = sizeof(cfg_hdr);
+    smp_rr.response = (u8*) &cfg_hdr;
+
+    int res = send_req_mpi3mr_bsg(top->fd, top->subvalue, top->sas_addr64, &smp_rr, vb);
+    if (res) {
+        qDebug("[send_req_mpi3mr_bsg] Enclosure page0 header read failed, res=%d", res);
+        return -1;
+    }
+    if (smp_rr.transport_err) {
+        qDebug("[send_req_mpi3mr_bsg] transport_error=%d", smp_rr.transport_err);
+        return -1;
+    }
+    if (smp_rr.act_response_l != sizeof(cfg_hdr)) {
+        qDebug("[send_req_mpi3mr_bsg] cfg_hdr data length mismatch");
+        return -1;
+    }
+
+    cfg_req.action = MPI3_CONFIG_ACTION_READ_CURRENT;
+    cfg_req.page_length = sizeof(encl_pg0);
+
+    smp_rr.mpi3mr_object = (void*) &cfg_req;
+    smp_rr.max_response_l = sizeof(encl_pg0);
+    smp_rr.response = (u8*) &encl_pg0;
+
+    res = send_req_mpi3mr_bsg(top->fd, top->subvalue, top->sas_addr64, &smp_rr, vb);
+    if (res) {
+        qDebug("[send_req_mpi3mr_bsg] Enclosure page0 read failed, res=%d", res);
+        return -1;
+    }
+    if (smp_rr.transport_err) {
+        qDebug("[send_req_mpi3mr_bsg] transport_error=%d", smp_rr.transport_err);
+        return -1;
+    }
+    if (smp_rr.act_response_l != sizeof(encl_pg0)) {
+        qDebug("[send_req_mpi3mr_bsg] encl_pg0 data length mismatch");
+        return -1;
+    }
+
+    /**
+     * exp_pg0.dev_handle turns to be the handle (form's value) of the next sas expander page0 request
+     */
+    if (vb) {
+        qDebug("found enclosure logical id=%llx with enclosure_handle=0x%04x, sep_dev_handle=0x%04x",
+            encl_pg0.enclosure_logical_id, encl_pg0.enclosure_handle, encl_pg0.sep_dev_handle);
+    }
+
+    return 0;
+}
+
+/**
+ *  @form: The form to be used for addressing the page
+ *
+ *  Return: 0 on success, non-zero on failure.
+ */
 static int cfg_get_sas_exp_pg0(smp_target_obj * top, struct mpi3_sas_expander_page0 & exp_pg0, u32 form, int vb)
 {
     struct mpi3_config_page_header cfg_hdr;
@@ -670,6 +746,7 @@ static int smp_report_manufacturer(smp_target_obj * top, uint8_t * rp, int rp_le
 void mpi3mr_iocfacts(int vb)
 {
     int num, k, res;
+    u16 handle;
     struct dirent ** namelist;
     smp_target_obj tobj;
     QString device_name;
@@ -728,7 +805,40 @@ void mpi3mr_iocfacts(int vb)
         /**
          * By hacking, 'form' value gets started with a value 0xffff
          */
-        u16 handle = 0xffff;
+        handle = 0xffff;
+        struct mpi3_enclosure_page0 encl_pg0;
+        for (int e = 0; e <= NUM_EXP_PER_HBA; ++e) {
+            res = cfg_get_enclosure_pg0(&tobj, encl_pg0, handle, vb);
+            if (res < 0) {
+                qDebug("Exit status %d indicates error detected", res);
+            } else {
+                // stop exploring if enclosure logical id becomes 0
+                if (encl_pg0.enclosure_logical_id == 0) {
+                    break;
+                }
+                /**
+                 * ok, got one more enclosure attached
+                 *
+                 * save SEP(SCSI Enclosure Processor) device handle if !0
+                 */
+                if (encl_pg0.sep_dev_handle != 0)
+                {
+                    /**
+                     * The first entry is not an expander enclosure logical id (seems hba's)
+                     */
+                    hba_sas_exp[ioc_cnt][e-1].enclosure_logical_id = encl_pg0.enclosure_logical_id;
+                    hba_sas_exp[ioc_cnt][e-1].sep_dev_handle = encl_pg0.sep_dev_handle;
+                }
+                /**
+                 * By hacking, new 'form' value is derived from encl_pg0.enclosure_handle
+                 */
+                handle = encl_pg0.enclosure_handle;
+            }
+        }
+        /**
+         * By hacking, 'form' value gets started with a value 0xffff
+         */
+        handle = 0xffff;
         struct mpi3_sas_expander_page0 exp_pg0;
         int len = sizeof(hba_sas_exp[0][0].rp_manufacturer);
         for (int e = 0; e < NUM_EXP_PER_HBA; ++e) {
@@ -736,23 +846,24 @@ void mpi3mr_iocfacts(int vb)
             if (res < 0) {
                 qDebug("Exit status %d indicates error detected", res);
             } else {
+                // stop exploring if sas address becomes 0
                 if (exp_pg0.sas_address == 0) {
                     break;
-                } else {
-                    tobj.sas_addr64 = hba_sas_exp[ioc_cnt][e].sas_address = exp_pg0.sas_address;
-                    res = smp_report_manufacturer(&tobj, hba_sas_exp[ioc_cnt][e].rp_manufacturer, len, vb);
-                    if (res < 0) {
-                        qDebug("Exit status %d indicates error detected", res);
-                    }
-                    /**
-                     * Register the BSG path in the expander just explored
-                     */
-                    gControllers.setBsgPath(tobj.device_name, exp_pg0.sas_address);
-                    /**
-                     * By hacking, new 'form' value is derived from exp_pg0.dev_handle
-                     */
-                    handle = exp_pg0.dev_handle;
                 }
+                // ok, got one more sas expander attached
+                tobj.sas_addr64 = hba_sas_exp[ioc_cnt][e].sas_address = exp_pg0.sas_address;
+                res = smp_report_manufacturer(&tobj, hba_sas_exp[ioc_cnt][e].rp_manufacturer, len, vb);
+                if (res < 0) {
+                    qDebug("Exit status %d indicates error detected", res);
+                }
+                /**
+                 * Register the BSG path in the expander just explored
+                 */
+                gControllers.setBsgPath(tobj.device_name, exp_pg0.sas_address);
+                /**
+                 * By hacking, new 'form' value is derived from exp_pg0.dev_handle
+                 */
+                handle = exp_pg0.dev_handle;
             }
         }
 
@@ -791,7 +902,7 @@ QString get_infofacts()
                         hba_sas_exp[i][e].sas_address,
                         hba_sas_exp[i][e].rp_manufacturer[36], hba_sas_exp[i][e].rp_manufacturer[37],
                         hba_sas_exp[i][e].rp_manufacturer[38], hba_sas_exp[i][e].rp_manufacturer[39]);
-                /* The right part output depends on the left part */
+                /* The right part outputs or not depending on the left part */
                 if (0 != hba_sas_exp[i][e+1].sas_address) {
                     s += QString::asprintf(",  EXP (%lX) FW: 0%c.0%c.0%c.0%c\n",
                             hba_sas_exp[i][e+1].sas_address,
