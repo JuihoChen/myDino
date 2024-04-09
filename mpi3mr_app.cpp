@@ -3,6 +3,7 @@
 #include <dirent.h>
 #include <linux/bsg.h>
 #include <scsi/scsi_bsg_mpi3mr.h>
+#include <scsi/scsi.h>
 #include <scsi/sg.h>
 #include <sys/ioctl.h>
 
@@ -14,6 +15,7 @@
 struct mpi3mr_hba_sas_exp {
     uint64_t enclosure_logical_id;
     u16 sep_dev_handle;
+    uint8_t scsi_io_reply[60];
     uint64_t sas_address;
     uint8_t rp_manufacturer[60];
 };
@@ -67,6 +69,7 @@ private:
     int m3r_get_all_tgt_info();
     int m3r_issue_iocfacts();
     int m3r_process_cfg_req();
+    int m3r_request_scsi_io();
     int m3r_smp_passthrough();
 
 private:
@@ -99,6 +102,8 @@ int mpi3_request::fill_request()
         return m3r_issue_iocfacts();
     case MPI3_FUNCTION_CONFIG:
         return m3r_process_cfg_req();
+    case MPI3_FUNCTION_SCSI_IO:
+        return m3r_request_scsi_io();
     case MPI3_FUNCTION_SMP_PASSTHROUGH:
         return m3r_smp_passthrough();
     default:
@@ -122,6 +127,7 @@ int mpi3_request::response_len(void * mpi_reply)
     case MPI3_FUNCTION_IOC_FACTS:
         return ((struct mpi3_ioc_facts_data *)reply_m)->ioc_facts_data_length * 4;
     case MPI3_FUNCTION_CONFIG:
+    case MPI3_FUNCTION_SCSI_IO:
         return m_rresp->max_response_l;
     case MPI3_FUNCTION_SMP_PASSTHROUGH:
         return ((struct mpi3_smp_passthrough_reply *)mpi_reply)->response_data_length;
@@ -215,6 +221,38 @@ int mpi3_request::m3r_process_cfg_req()
 
     m3r_add_buf_entry(MPI3MR_BSG_BUFTYPE_DATA_IN, m_rresp->max_response_l);
     m3r_add_buf_entry(MPI3MR_BSG_BUFTYPE_MPI_REPLY, m_replyLen);
+    m3r_add_buf_entry(MPI3MR_BSG_BUFTYPE_MPI_REQUEST, m_requestLen);
+
+    mbp.cmd_type = MPI3MR_MPT_CMD;
+    mbp.cmd.mptcmd.timeout = 180;           // ?a hacked value
+    mbp.cmd.mptcmd.mrioc_id = m_iocId;      // Set the IOC number prior to issuing this command.
+    mbp.cmd.mptcmd.buf_entry_list.num_of_entries = m_ecnt;
+
+    return (long) & mbp.cmd.mptcmd.buf_entry_list.buf_entry[m_ecnt] - (long) & mbp;
+}
+
+int mpi3_request::m3r_request_scsi_io()
+{
+    struct mpi3_scsi_io_request * mpi_request;
+    struct dummy_reply { char dummy[61]; };
+    struct err_response { char dummy[252]; };
+
+    m_requestLen = sizeof(struct mpi3_scsi_io_request);
+    m_replyLen = sizeof(struct dummy_reply) + sizeof(struct err_response);
+
+    mpi_request = (struct mpi3_scsi_io_request *) request_m;
+    /*
+     * !!! Copy to request_m is a must to prevent driver crash
+     */
+    if (nullptr == m_rresp->mpi3mr_object) {
+        qDebug("%s: no valid config request to process!", __func__);
+        return 0;
+    }
+    *mpi_request = *(struct mpi3_scsi_io_request *) m_rresp->mpi3mr_object;
+
+    m3r_add_buf_entry(MPI3MR_BSG_BUFTYPE_DATA_IN, m_rresp->max_response_l);
+    m3r_add_buf_entry(MPI3MR_BSG_BUFTYPE_MPI_REPLY, sizeof(struct dummy_reply));
+    m3r_add_buf_entry(MPI3MR_BSG_BUFTYPE_ERR_RESPONSE, sizeof(struct err_response));
     m3r_add_buf_entry(MPI3MR_BSG_BUFTYPE_MPI_REQUEST, m_requestLen);
 
     mbp.cmd_type = MPI3MR_MPT_CMD;
@@ -672,6 +710,54 @@ static int cfg_get_sas_exp_pg0(smp_target_obj * top, struct mpi3_sas_expander_pa
     return 0;
 }
 
+/**
+ *  Issues the SCSI Command as an MPI3 request.
+ *
+ *  Return: 0 on success, non-zero on failure.
+ */
+static int mpi3mr_qcmd(smp_target_obj * top, u16 handle, uint8_t * rp, int rp_len, int vb)
+{
+    uint8_t scsi_req[] = {READ_BUFFER, 0x01, 0xe6, 0xff, 0x0f, 0x00, sizeof(struct mpi3_scsi_io_request), 0};
+    struct mpi3_scsi_io_request scsiio_req;
+    smp_req_resp smp_rr;
+
+    if (vb) {
+        QString msg = "    SCSI IO request: ";
+        for (int k = 0; k < (int)sizeof(scsi_req); ++k)
+            msg += QString::asprintf("%02x ", scsi_req[k]);
+        qDebug() << msg;
+    }
+    memset(&scsiio_req, 0, sizeof(scsiio_req));
+    memset(&smp_rr, 0, sizeof(smp_rr));
+
+    scsiio_req.function = MPI3_FUNCTION_SCSI_IO;
+    scsiio_req.dev_handle = handle;
+    scsiio_req.flags = MPI3_SCSIIO_FLAGS_DATADIRECTION_READ;
+    scsiio_req.data_length = sizeof(scsiio_req);
+    memcpy(scsiio_req.cdb.cdb32, scsi_req, sizeof(scsi_req));
+
+    smp_rr.mpi3mr_function = MPI3_FUNCTION_SCSI_IO;
+    smp_rr.mpi3mr_object = (void*) &scsiio_req;
+    smp_rr.max_response_l = rp_len;
+    smp_rr.response = rp;
+
+    int res = send_req_mpi3mr_bsg(top->fd, top->subvalue, top->sas_addr64, &smp_rr, vb);
+    if (res) {
+        qDebug("[send_req_mpi3mr_bsg] SCSI Command failed, res=%d", res);
+        return -1;
+    }
+    if (smp_rr.transport_err) {
+        qDebug("[send_req_mpi3mr_bsg] transport_error=%d", smp_rr.transport_err);
+        return -1;
+    }
+    if (smp_rr.act_response_l != rp_len) {
+        qDebug("[send_req_mpi3mr_bsg] scsiio_reply data length mismatch");
+        return -1;
+    }
+
+    return 0;
+}
+
 static int smp_report_manufacturer(smp_target_obj * top, uint8_t * rp, int rp_len, int vb)
 {
     uint8_t smp_req[] = {SMP_FRAME_TYPE_REQ, SMP_FN_REPORT_MANUFACTURER, 0, 0};
@@ -745,7 +831,7 @@ static int smp_report_manufacturer(smp_target_obj * top, uint8_t * rp, int rp_le
 
 void mpi3mr_iocfacts(int vb)
 {
-    int num, k, res;
+    int num, k, res, len;
     u16 handle;
     struct dirent ** namelist;
     smp_target_obj tobj;
@@ -807,64 +893,72 @@ void mpi3mr_iocfacts(int vb)
          */
         handle = 0xffff;
         struct mpi3_enclosure_page0 encl_pg0;
-        for (int e = 0; e <= NUM_EXP_PER_HBA; ++e) {
+        len = sizeof(hba_sas_exp[0][0].scsi_io_reply);
+        /**
+         * Add one more loop for 1st try on logical id of hba??
+         */
+        for (int e = 0; e < NUM_EXP_PER_HBA+1; ++e) {
             res = cfg_get_enclosure_pg0(&tobj, encl_pg0, handle, vb);
             if (res < 0) {
                 qDebug("Exit status %d indicates error detected", res);
-            } else {
-                // stop exploring if enclosure logical id becomes 0
-                if (encl_pg0.enclosure_logical_id == 0) {
-                    break;
-                }
-                /**
-                 * ok, got one more enclosure attached
-                 *
-                 * save SEP(SCSI Enclosure Processor) device handle if !0
-                 */
-                if (encl_pg0.sep_dev_handle != 0)
-                {
-                    /**
-                     * The first entry is not an expander enclosure logical id (seems hba's)
-                     */
-                    hba_sas_exp[ioc_cnt][e-1].enclosure_logical_id = encl_pg0.enclosure_logical_id;
-                    hba_sas_exp[ioc_cnt][e-1].sep_dev_handle = encl_pg0.sep_dev_handle;
-                }
-                /**
-                 * By hacking, new 'form' value is derived from encl_pg0.enclosure_handle
-                 */
-                handle = encl_pg0.enclosure_handle;
+                break;
             }
+            // stop exploring if enclosure logical id becomes 0
+            if (encl_pg0.enclosure_logical_id == 0) {
+                break;
+            }
+            /**
+             * Ok, got one more enclosure attached
+             *
+             * save SEP(SCSI Enclosure Processor) device handle if !0
+             */
+            if (encl_pg0.sep_dev_handle != 0)
+            {
+                /**
+                 * The first entry is not an expander enclosure logical id (seems hba's)
+                 */
+                hba_sas_exp[ioc_cnt][e-1].enclosure_logical_id = encl_pg0.enclosure_logical_id;
+                hba_sas_exp[ioc_cnt][e-1].sep_dev_handle = encl_pg0.sep_dev_handle;
+                res = mpi3mr_qcmd(&tobj, encl_pg0.sep_dev_handle, hba_sas_exp[ioc_cnt][e-1].scsi_io_reply, len, vb);
+                if (res < 0) {
+                    qDebug("Exit status %d indicates error detected", res);
+                }
+            }
+            /**
+             * By hacking, new 'form' value is derived from encl_pg0.enclosure_handle
+             */
+            handle = encl_pg0.enclosure_handle;
         }
         /**
          * By hacking, 'form' value gets started with a value 0xffff
          */
         handle = 0xffff;
         struct mpi3_sas_expander_page0 exp_pg0;
-        int len = sizeof(hba_sas_exp[0][0].rp_manufacturer);
+        len = sizeof(hba_sas_exp[0][0].rp_manufacturer);
         for (int e = 0; e < NUM_EXP_PER_HBA; ++e) {
             res = cfg_get_sas_exp_pg0(&tobj, exp_pg0, handle, vb);
             if (res < 0) {
                 qDebug("Exit status %d indicates error detected", res);
-            } else {
-                // stop exploring if sas address becomes 0
-                if (exp_pg0.sas_address == 0) {
-                    break;
-                }
-                // ok, got one more sas expander attached
-                tobj.sas_addr64 = hba_sas_exp[ioc_cnt][e].sas_address = exp_pg0.sas_address;
-                res = smp_report_manufacturer(&tobj, hba_sas_exp[ioc_cnt][e].rp_manufacturer, len, vb);
-                if (res < 0) {
-                    qDebug("Exit status %d indicates error detected", res);
-                }
-                /**
-                 * Register the BSG path in the expander just explored
-                 */
-                gControllers.setBsgPath(tobj.device_name, exp_pg0.sas_address);
-                /**
-                 * By hacking, new 'form' value is derived from exp_pg0.dev_handle
-                 */
-                handle = exp_pg0.dev_handle;
+                break;
             }
+            // stop exploring if sas address becomes 0
+            if (exp_pg0.sas_address == 0) {
+                break;
+            }
+            // ok, got one more sas expander attached
+            tobj.sas_addr64 = hba_sas_exp[ioc_cnt][e].sas_address = exp_pg0.sas_address;
+            res = smp_report_manufacturer(&tobj, hba_sas_exp[ioc_cnt][e].rp_manufacturer, len, vb);
+            if (res < 0) {
+                qDebug("Exit status %d indicates error detected", res);
+            }
+            /**
+             * Register the BSG path in the expander just explored
+             */
+            gControllers.setBsgPath(tobj.device_name, exp_pg0.sas_address);
+            /**
+             * By hacking, new 'form' value is derived from exp_pg0.dev_handle
+             */
+            handle = exp_pg0.dev_handle;
         }
 
         smp_initiator_close(&tobj);
@@ -898,16 +992,18 @@ QString get_infofacts()
 
         for (int e = 0; e < NUM_EXP_PER_HBA; e += 2) {
             if (0 != hba_sas_exp[i][e].sas_address) {
-                s += QString::asprintf("EXP (%lX) FW: 0%c.0%c.0%c.0%c",
+                s += QString::asprintf("EXP (%lX) FW: 0%c.0%c.0%c.0%c CFG: %02X:%02X",
                         hba_sas_exp[i][e].sas_address,
                         hba_sas_exp[i][e].rp_manufacturer[36], hba_sas_exp[i][e].rp_manufacturer[37],
-                        hba_sas_exp[i][e].rp_manufacturer[38], hba_sas_exp[i][e].rp_manufacturer[39]);
+                        hba_sas_exp[i][e].rp_manufacturer[38], hba_sas_exp[i][e].rp_manufacturer[39],
+                        hba_sas_exp[i][e].scsi_io_reply[12], hba_sas_exp[i][e].scsi_io_reply[13]);
                 /* The right part outputs or not depending on the left part */
                 if (0 != hba_sas_exp[i][e+1].sas_address) {
-                    s += QString::asprintf(",  EXP (%lX) FW: 0%c.0%c.0%c.0%c\n",
+                    s += QString::asprintf(",  EXP (%lX) FW: 0%c.0%c.0%c.0%c CFG: %02X:%02X\n",
                             hba_sas_exp[i][e+1].sas_address,
                             hba_sas_exp[i][e+1].rp_manufacturer[36], hba_sas_exp[i][e+1].rp_manufacturer[37],
-                            hba_sas_exp[i][e+1].rp_manufacturer[38], hba_sas_exp[i][e+1].rp_manufacturer[39]);
+                            hba_sas_exp[i][e+1].rp_manufacturer[38], hba_sas_exp[i][e+1].rp_manufacturer[39],
+                            hba_sas_exp[i][e+1].scsi_io_reply[12], hba_sas_exp[i][e+1].scsi_io_reply[13]);
                 } else s += "\n";
             }
         }

@@ -35,6 +35,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         mpi30/mpi30_transport.h
         mpi30/mpi30_image.h
         mpi30/mpi30_cnfg.h
+        mpi30/mpi30_init.h
         mpi3mr.h
         lsscsi.cpp
         lsscsi.h
