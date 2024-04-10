@@ -351,16 +351,16 @@ expander_wwid(QString dir_name, QString dev_name, int vb)
 {
     int vlen;
     char value[LMAX_NAME];
-    QString wd = QString("%1/%2/enclosure/%2").arg(dir_name, dev_name);
+    QString wd = QString("%1/%2").arg(dir_name, dev_name);
 
     vlen = sizeof(value);
-    if (get_value(wd, "id", value, vlen)) {
+    if (get_value(wd, "sas_address", value, vlen)) {
         if (vb) {
-            qDebug("Found an enclosure wwid: %s", value);
+            qDebug("Found an expander sas address: %s", value);
         }
         int len = strlen(value);
         if (len >= 16) len -= 16;   // wwid is 16-digit long
-        return QString(value + len).toULong(0, 16);
+        return QString(value + len).toULong(0, 16) | 0xF;
     }
     return 0;
 }
