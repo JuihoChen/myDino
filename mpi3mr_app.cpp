@@ -65,6 +65,9 @@ public:
 
 private:
     int m3r_add_buf_entry(__u8 buf_type, __u32 buf_len);
+    int m3r_mpt_buf_len() {
+        return (long) & mbp.cmd.mptcmd.buf_entry_list.buf_entry[m_ecnt] - (long) & mbp;
+    }
     int m3r_populate_adpinfo();
     int m3r_get_all_tgt_info();
     int m3r_issue_iocfacts();
@@ -198,7 +201,7 @@ int mpi3_request::m3r_issue_iocfacts()
     mbp.cmd.mptcmd.mrioc_id = m_iocId;      // Set the IOC number prior to issuing this command.
     mbp.cmd.mptcmd.buf_entry_list.num_of_entries = m_ecnt;
 
-    return (long) & mbp.cmd.mptcmd.buf_entry_list.buf_entry[m_ecnt] - (long) & mbp;
+    return m3r_mpt_buf_len();
 }
 
 int mpi3_request::m3r_process_cfg_req()
@@ -228,7 +231,7 @@ int mpi3_request::m3r_process_cfg_req()
     mbp.cmd.mptcmd.mrioc_id = m_iocId;      // Set the IOC number prior to issuing this command.
     mbp.cmd.mptcmd.buf_entry_list.num_of_entries = m_ecnt;
 
-    return (long) & mbp.cmd.mptcmd.buf_entry_list.buf_entry[m_ecnt] - (long) & mbp;
+    return m3r_mpt_buf_len();
 }
 
 int mpi3_request::m3r_request_scsi_io()
@@ -260,7 +263,7 @@ int mpi3_request::m3r_request_scsi_io()
     mbp.cmd.mptcmd.mrioc_id = m_iocId;      // Set the IOC number prior to issuing this command.
     mbp.cmd.mptcmd.buf_entry_list.num_of_entries = m_ecnt;
 
-    return (long) & mbp.cmd.mptcmd.buf_entry_list.buf_entry[m_ecnt] - (long) & mbp;
+    return m3r_mpt_buf_len();
 }
 
 int mpi3_request::m3r_smp_passthrough()
@@ -286,7 +289,7 @@ int mpi3_request::m3r_smp_passthrough()
     mbp.cmd.mptcmd.mrioc_id = m_iocId;      // Set the IOC number prior to issuing this command.
     mbp.cmd.mptcmd.buf_entry_list.num_of_entries = m_ecnt;
 
-    return (long) & mbp.cmd.mptcmd.buf_entry_list.buf_entry[m_ecnt] - (long) & mbp;
+    return m3r_mpt_buf_len();
 }
 
 /* Returns 0 on success else -1 . */
@@ -715,16 +718,19 @@ static int cfg_get_sas_exp_pg0(smp_target_obj * top, struct mpi3_sas_expander_pa
  *
  *  Return: 0 on success, non-zero on failure.
  */
+#define MODE 1
+#define BUFFER_ID 0xe6
+
 static int mpi3mr_qcmd(smp_target_obj * top, u16 handle, uint8_t * rp, int rp_len, int vb)
 {
-    uint8_t scsi_req[] = {READ_BUFFER, 0x01, 0xe6, 0xff, 0x0f, 0x00, sizeof(struct mpi3_scsi_io_request), 0};
+    uint8_t scmd[] = {READ_BUFFER, MODE, BUFFER_ID, 0xff, 0x0f, 0x00, (uint8_t)rp_len, (uint8_t)(rp_len>>8), 0};
     struct mpi3_scsi_io_request scsiio_req;
     smp_req_resp smp_rr;
 
     if (vb) {
         QString msg = "    SCSI IO request: ";
-        for (int k = 0; k < (int)sizeof(scsi_req); ++k)
-            msg += QString::asprintf("%02x ", scsi_req[k]);
+        for (int k = 0; k < (int)sizeof(scmd); ++k)
+            msg += QString::asprintf("%02x ", scmd[k]);
         qDebug() << msg;
     }
     memset(&scsiio_req, 0, sizeof(scsiio_req));
@@ -733,8 +739,8 @@ static int mpi3mr_qcmd(smp_target_obj * top, u16 handle, uint8_t * rp, int rp_le
     scsiio_req.function = MPI3_FUNCTION_SCSI_IO;
     scsiio_req.dev_handle = handle;
     scsiio_req.flags = MPI3_SCSIIO_FLAGS_DATADIRECTION_READ;
-    scsiio_req.data_length = sizeof(scsiio_req);
-    memcpy(scsiio_req.cdb.cdb32, scsi_req, sizeof(scsi_req));
+    scsiio_req.data_length = rp_len;
+    memcpy(scsiio_req.cdb.cdb32, scmd, sizeof(scmd));
 
     smp_rr.mpi3mr_function = MPI3_FUNCTION_SCSI_IO;
     smp_rr.mpi3mr_object = (void*) &scsiio_req;

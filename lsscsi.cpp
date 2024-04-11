@@ -360,7 +360,10 @@ expander_wwid(QString dir_name, QString dev_name, int vb)
         }
         int len = strlen(value);
         if (len >= 16) len -= 16;   // wwid is 16-digit long
-        return QString(value + len).toULong(0, 16) | 0xF;
+        /**
+         * The lowest 6 bits of the expander SAS address must be set to 0x1
+         */
+        return QString(value + len).toULong(0, 16) | 0x3F;
     }
     return 0;
 }
