@@ -761,6 +761,10 @@ static int mpi3mr_qcmd(smp_target_obj * top, u16 handle, uint8_t * rp, int rp_le
         return -1;
     }
 
+    if (vb) {
+        qDebug("MFG Ver %02X.%02X", rp[12], rp[13]);
+    }
+
     return 0;
 }
 
@@ -1000,14 +1004,14 @@ QString get_infofacts()
 
         for (int e = 0; e < NUM_EXP_PER_HBA; e += 2) {
             if (0 != hba_sas_exp[i][e].sas_address) {
-                s += QString::asprintf("ELI (%lX) FW: 0%c.0%c.0%c.0%c MFG: %02X:%02X",
+                s += QString::asprintf("ELI (%lX) FW: 0%c.0%c.0%c.0%c MFG: %02X.%02X",
                         hba_sas_exp[i][e].enclosure_logical_id,
                         hba_sas_exp[i][e].rp_manufacturer[36], hba_sas_exp[i][e].rp_manufacturer[37],
                         hba_sas_exp[i][e].rp_manufacturer[38], hba_sas_exp[i][e].rp_manufacturer[39],
                         hba_sas_exp[i][e].scsi_io_reply[12], hba_sas_exp[i][e].scsi_io_reply[13]);
                 /* The right part outputs or not depending on the left part */
                 if (0 != hba_sas_exp[i][e+1].sas_address) {
-                    s += QString::asprintf(",  ELI (%lX) FW: 0%c.0%c.0%c.0%c MFG: %02X:%02X\n",
+                    s += QString::asprintf(",  ELI (%lX) FW: 0%c.0%c.0%c.0%c MFG: %02X.%02X\n",
                             hba_sas_exp[i][e+1].enclosure_logical_id,
                             hba_sas_exp[i][e+1].rp_manufacturer[36], hba_sas_exp[i][e+1].rp_manufacturer[37],
                             hba_sas_exp[i][e+1].rp_manufacturer[38], hba_sas_exp[i][e+1].rp_manufacturer[39],
