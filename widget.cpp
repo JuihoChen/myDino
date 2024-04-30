@@ -906,6 +906,15 @@ void Widget::filloutCanvas(bool uncheck)
     gControllers.clear();
     list_sdevices(verbose);
     hba9500 ? slot_discover(verbose) : mpi3mr_slot_discover(verbose);
+
+    if (false == hba9500 && ENUM_TAB::Info == ui->tabWidget->currentIndex()) {
+        ui->textInfo->clear();
+        ui->textInfo->append(get_infofacts());
+        // Scroll QTextBrowser to the top
+        QTextCursor cursor = ui->textInfo->textCursor();
+        cursor.setPosition(0);
+        ui->textInfo->setTextCursor(cursor);
+    }
 }
 
 /* return value is the delay time */
