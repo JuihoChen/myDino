@@ -1,6 +1,9 @@
 #ifndef WIDGET_H
 #define WIDGET_H
 
+#include <QTextStream>
+#include <QDebug>
+#include <QCloseEvent>
 #include <QCheckBox>
 #include <QFileSystemWatcher>
 #include <QGroupBox>
