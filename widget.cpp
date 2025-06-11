@@ -24,6 +24,8 @@ static QTextBrowser * gText = nullptr;
 DeviceFunc gDevices;
 ExpanderFunc gControllers;
 
+ENUM_CARDTYPE cardType = ENUM_CARDTYPE::HBA9600;
+
 void DeviceFunc::clear(bool uncheck)
 {
     for (int i = 0; i < NSLOT; i++) {
@@ -887,7 +889,7 @@ void Widget::tabSelected()
         break;
     case ENUM_TAB::Info:
         ui->textInfo->clear();
-        if (hba9500) {
+        if (cardType == ENUM_CARDTYPE::HBA9500) {
             ui->textInfo->append("HBA is 9500");
             break;
         }
@@ -905,15 +907,23 @@ void Widget::filloutCanvas(bool uncheck)
     gDevices.clear(uncheck);
     gControllers.clear();
     list_sdevices(verbose);
-    hba9500 ? slot_discover(verbose) : mpi3mr_slot_discover(verbose);
 
-    if (false == hba9500 && ENUM_TAB::Info == ui->tabWidget->currentIndex()) {
-        ui->textInfo->clear();
-        ui->textInfo->append(get_infofacts());
-        // Scroll QTextBrowser to the top
-        QTextCursor cursor = ui->textInfo->textCursor();
-        cursor.setPosition(0);
-        ui->textInfo->setTextCursor(cursor);
+    if (cardType == ENUM_CARDTYPE::HBA9500) {
+        slot_discover(verbose);
+    }
+
+    if (cardType == ENUM_CARDTYPE::HBA9600) {
+        // Discover the expanders and devices
+        mpi3mr_slot_discover(verbose);
+
+        if (ui->tabWidget->currentIndex() == ENUM_TAB::Info) {
+            ui->textInfo->clear();
+            ui->textInfo->append(get_infofacts());
+            // Scroll QTextBrowser to the top
+            QTextCursor cursor = ui->textInfo->textCursor();
+            cursor.setPosition(0);
+            ui->textInfo->setTextCursor(cursor);
+        }
     }
 }
 
@@ -936,7 +946,7 @@ int Widget::phySetDisabled(bool disable)
                 if (gDevices.cbSlot(i)->isChecked()) {
                     // the expander is to be opened for the 1st selected slot
                     if (0 == tobj.opened) {
-                        IntfEnum sel = hba9500 ? I_SGV4 : I_SGV4_MPI;
+                        IntfEnum sel = (cardType == ENUM_CARDTYPE::HBA9500) ? I_SGV4 : I_SGV4_MPI;
                         // assign the IOC number for multiple adapters case
                         int res = smp_initiator_open(gControllers.bsgPath(k), sel, &tobj, verbose);
                         if (res < 0) {

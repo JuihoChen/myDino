@@ -37,7 +37,7 @@ static struct my_all_tgt_info alltgt_info[NUM_IOC];
 /* To differentiate from MPI3 pass through commands */
 #define DRVBSG_OPCODE (0x1 << 31)
 
-/* make a space reserved for mpb (mpi3mr bsg packet)
+/* make a space reserved for mbp (mpi3mr bsg packet)
  *      mpi3mr_bsg_packet -> mpi3mr_bsg_drv_cmd
  *                        -> mpi3mr_bsg_mptcmd -> mpi3mr_buf_entry_list -> mpi3mr_buf_entry
  *                                                                       + mpi3mr_buf_entry * 9

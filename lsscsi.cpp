@@ -28,8 +28,6 @@
 
 #define UINT64_LAST ((uint64_t)~0)
 
-bool hba9500 = false;
-
 static const char * sysfsroot = "/sys";
 static const char * bus_scsi_devs = "/bus/scsi/devices";
 
@@ -265,7 +263,7 @@ enclosure_dir_scan_select(const struct dirent * s)
 {
     if (dir_or_link(s, "enclosure")) {
         if (dir_or_link(s, "enclosure_device")) {
-            hba9500 = true;
+            cardType = ENUM_CARDTYPE::HBA9500;
             enclosure_device.name = s->d_name;
             enclosure_device.ft = FT_CHAR;  /* dummy */
             enclosure_device.d_type = s->d_type;
@@ -412,6 +410,87 @@ compute_device_index(const char * device, const char * expander)
     return exp_hctl.t - dev_hctl.t;
 }
 
+/* Function to run the storcli command for a specific controller */
+QStringList
+getDriveInfo(int controllerNumber)
+{
+    QString command = QString("sudo /opt/MegaRAID/storcli/storcli64 /c%1 /eall /sall show | "
+                              "sed -n '/^EID:Slt/,/^$/p' | "
+                              "sed '/^EID:Slt/d;/^[-=]\\+$/d'")
+                              .arg(controllerNumber);
+
+    QProcess process;
+    process.start("bash", QStringList() << "-c" << command);
+    process.waitForFinished();
+
+    QString output = process.readAllStandardOutput();
+    QString error = process.readAllStandardError();
+
+    if (!error.isEmpty()) {
+        qDebug() << QString("Command Error for Controller %1:").arg(controllerNumber) << error;
+    }
+
+    QStringList lines = output.split('\n', Qt::SkipEmptyParts);
+    for (QString &line : lines) {
+        line = line.trimmed();
+    }
+
+    return lines;
+}
+
+// Struct to hold disk information
+struct DiskInfo {
+    QString name;
+    QString wwn;
+    QString serial;
+    QString model;
+};
+
+QVector<DiskInfo>
+getRealHddInfo()
+{
+    QString command = "lsblk -o NAME,WWN,SERIAL,MODEL -n";
+    QProcess process;
+
+    process.start("bash", QStringList() << "-c" << command);
+    process.waitForFinished();
+
+    QString output = process.readAllStandardOutput();
+    QString error = process.readAllStandardError();
+
+    if (!error.isEmpty()) {
+        qDebug() << "Command Error:\n" << error;
+    }
+
+    QStringList lines = output.split('\n', Qt::SkipEmptyParts);
+    QVector<DiskInfo> diskList;
+
+    for (const QString &line : lines) {
+        QStringList tokens = line.simplified().split(' '); // Clean and split
+
+        if (tokens.size() >= 4) {
+            DiskInfo disk;
+            disk.name = tokens[0];
+            disk.wwn = tokens[1];
+            disk.serial = tokens[2];
+            disk.model = tokens[3];
+
+            // Skip virtual disks, loops, CD-ROMs, and optionally NVMe
+            if (disk.name.startsWith("loop")) continue;
+            if (disk.name.startsWith("sr")) continue;
+            if (disk.serial.startsWith("Virtual")) continue;
+            if (disk.model.contains("Virtual", Qt::CaseInsensitive)) continue;
+            // Optional: Skip NVMe SSDs
+            if (disk.name.startsWith("nvme")) continue;
+
+            // Keep real HDDs only
+            diskList.append(disk);
+        }
+    }
+
+    return diskList;
+}
+
 /* List SCSI devices (LUs). */
 void
 list_sdevices(int vb)
@@ -420,8 +499,9 @@ list_sdevices(int vb)
     struct dirent ** namelist;
     QString buff, name;
 
-    if (vb)
+    if (vb) {
         qDebug("listing...");
+    }
 
     buff = QString(sysfsroot) + bus_scsi_devs;
 
@@ -441,7 +521,7 @@ list_sdevices(int vb)
             if (0 == wwid) {
                 gAppendMessage(QString("error: cannot get expander[%1] wwid!").arg(name));
             } else {
-                if (false == hba9500) {
+                if (cardType == ENUM_CARDTYPE::HBA9600) {
                     for (; prev < k; ++prev) {
                         gDevices.setSlot(buff, namelist[prev]->d_name, namelist[k]->d_name, wwid);
                     }
@@ -449,8 +529,40 @@ list_sdevices(int vb)
                 }
                 gControllers.setController(namelist[k]->d_name, wwid);
             }
-        } else if (true == hba9500) {
+        } else if (cardType == ENUM_CARDTYPE::HBA9500) {
             gDevices.setSlot(buff, name, enclosure_device.name);
+        }
+    }
+
+    // If no devices found by methods of HBA9500/HBA9600, possibly a RAID card is present
+    if (gControllers.count() == 0 && gDevices.count() == 0) {
+        cardType = ENUM_CARDTYPE::RAID9x60;
+        if (vb) {
+            qDebug("re-enumerate SCSI devices as a RAID9x60 card is assumed present");
+        }
+
+        // Get outputs from both RAID controllers
+        QStringList raid0Drives = getDriveInfo(0);
+        QStringList raid1Drives = getDriveInfo(1);
+
+        // Combine the two lists
+        QStringList allDrives = raid0Drives + raid1Drives;
+
+        // Print all drives
+        if (vb) {
+            qDebug() << "All Drives from Both Controllers:";
+            for (const QString &line : allDrives) {
+                qDebug() << line;
+            }
+        }
+
+        QVector<DiskInfo> disks = getRealHddInfo();
+
+        if (vb) {
+            qDebug() << "Detected Real HDDs:";
+            for (const DiskInfo &disk : disks) {
+                qDebug() << "Name:" << disk.name << "WWN:" << disk.wwn << "Serial:" << disk.serial << "Model:" << disk.model;
+            }
         }
     }
 
