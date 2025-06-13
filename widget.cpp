@@ -91,6 +91,32 @@ void DeviceFunc::setSlot(QString dir_name, QString device, QString expander, uin
     setSlot(dir_name, device, sl);
 }
 
+void DeviceFunc::setSlot(int slp, QString d_name, QString wwid, QString block)
+{
+    // the device should be within this expander's domain
+    if (slp <= 0 || slp > NSLOT) {
+        qDebug() << "Device [" << d_name << "] setting error!";
+        return;
+    }
+
+    // validate the index passed
+    int sl = valiIndex(slp - 1);
+    {
+        // Set slot occupied by something
+        SlotInfo[sl].d_name = d_name;
+
+        // Get wwid of this device
+        SlotInfo[sl].wwid = wwid;
+
+        // Get block name of this device
+        SlotInfo[sl].block = block;
+
+        SlotInfo[sl].cb_slot->setEnabled(true);
+        setSlotLabel(sl);
+        myCount++;
+    }
+}
+
 void DeviceFunc::setDiscoverResp(int dsn, uchar * src, int len)
 {
     int sl = dsn - 1;

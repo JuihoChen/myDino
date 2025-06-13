@@ -65,6 +65,7 @@ public:
     void setSlot(QString dir_name, QString device, QString enclosure_device_name) {
         setSlot(dir_name, device, enclosure_device_name.right(2).toShort(0, 16) - 1);
     }
+    void setSlot(int slp, QString d_name, QString wwid, QString block);
     void setDiscoverResp(int dsn, uchar * src, int len);
     void setSlotLabel(int sl);
     bool slotVacant(int sl) { return (sl == valiIndex(sl)) ? SlotInfo[sl].d_name.isEmpty() : false; }

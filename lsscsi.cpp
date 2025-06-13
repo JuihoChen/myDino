@@ -1,4 +1,5 @@
 #include <QString>
+#include <QRegularExpression>
 #include <byteswap.h>
 #include <dirent.h>
 #include <inttypes.h>
@@ -410,14 +411,17 @@ compute_device_index(const char * device, const char * expander)
     return exp_hctl.t - dev_hctl.t;
 }
 
-/* Function to run the storcli command for a specific controller */
-QStringList
-getDriveInfo(int controllerNumber)
+// Struct to hold drive info
+struct DriveInfo {
+    int eid;
+    int slot;
+    QString serialNumber;
+};
+
+/* Routine 1: Run storcli command for all controllers and get raw drive blocks */
+QStringList getRawDriveBlocks()
 {
-    QString command = QString("sudo /opt/MegaRAID/storcli/storcli64 /c%1 /eall /sall show | "
-                              "sed -n '/^EID:Slt/,/^$/p' | "
-                              "sed '/^EID:Slt/d;/^[-=]\\+$/d'")
-                              .arg(controllerNumber);
+    QString command = "sudo /opt/MegaRAID/storcli/storcli64 /call /eall /sall show all";
 
     QProcess process;
     process.start("bash", QStringList() << "-c" << command);
@@ -427,15 +431,67 @@ getDriveInfo(int controllerNumber)
     QString error = process.readAllStandardError();
 
     if (!error.isEmpty()) {
-        qDebug() << QString("Command Error for Controller %1:").arg(controllerNumber) << error;
+        qDebug() << "Command Error:" << error;
     }
 
-    QStringList lines = output.split('\n', Qt::SkipEmptyParts);
-    for (QString &line : lines) {
-        line = line.trimmed();
+    // Extract each drive block from the raw output
+    QRegularExpression driveStartRegex(R"(Drive\s+\/c\d+\/e\d+\/s\d+\s+:)");
+    QRegularExpressionMatchIterator iterator = driveStartRegex.globalMatch(output);
+
+    QList<int> positions;
+    while (iterator.hasNext()) {
+        QRegularExpressionMatch match = iterator.next();
+        positions.append(match.capturedStart());
     }
 
-    return lines;
+    QStringList driveBlocks;
+    for (int i = 0; i < positions.size(); ++i) {
+        int start = positions[i];
+        int end = (i + 1 < positions.size()) ? positions[i + 1] : output.length();
+        QString block = output.mid(start, end - start).trimmed();
+        if (!block.isEmpty()) {
+            driveBlocks.append(block);
+        }
+    }
+
+    return driveBlocks;
+}
+
+/* Routine 2: Parse a single drive block */
+DriveInfo parseDriveBlock(const QString& block) {
+    DriveInfo drive;
+
+    // Extract EID and Slot
+    QRegularExpression eidSltRegex(R"(Drive\s+\/c\d+\/e(\d+)\/s(\d+)\s+:)");
+    QRegularExpressionMatch match = eidSltRegex.match(block);
+    if (match.hasMatch()) {
+        drive.eid = match.captured(1).toInt();
+        drive.slot = match.captured(2).toInt();
+    }
+
+    // Extract Serial Number
+    QRegularExpression snRegex(R"(SN\s+=\s+(\S+))");
+    QRegularExpressionMatch snMatch = snRegex.match(block);
+    if (snMatch.hasMatch()) {
+        drive.serialNumber = snMatch.captured(1);
+    } else {
+        drive.serialNumber = "Unknown";
+    }
+
+    return drive;
+}
+
+/* Routine 3: Full processing to get structured vector */
+QVector<DriveInfo> getAllControllerDriveInfo()
+{
+    QStringList driveBlocks = getRawDriveBlocks();
+    QVector<DriveInfo> driveList;
+
+    for (const QString& block : driveBlocks) {
+        driveList.append(parseDriveBlock(block));
+    }
+
+    return driveList;
 }
 
 // Struct to hold disk information
@@ -446,8 +502,7 @@ struct DiskInfo {
     QString model;
 };
 
-QVector<DiskInfo>
-getRealHddInfo()
+QVector<DiskInfo> getRealHddInfo()
 {
     QString command = "lsblk -o NAME,WWN,SERIAL,MODEL -n";
     QProcess process;
@@ -489,6 +544,16 @@ getRealHddInfo()
     }
 
     return diskList;
+}
+
+/* Utility function: returns pointer or nullptr if not found */
+DiskInfo* findDiskBySerial(QVector<DiskInfo>& disks, const QString& serial) {
+    for (DiskInfo& disk : disks) {
+        if (disk.serial == serial) {
+            return &disk; // Return pointer to the found disk
+        }
+    }
+    return nullptr; // Not found
 }
 
 /* List SCSI devices (LUs). */
@@ -541,19 +606,10 @@ list_sdevices(int vb)
             qDebug("re-enumerate SCSI devices as a RAID9x60 card is assumed present");
         }
 
-        // Get outputs from both RAID controllers
-        QStringList raid0Drives = getDriveInfo(0);
-        QStringList raid1Drives = getDriveInfo(1);
+        QVector<DriveInfo> drives = getAllControllerDriveInfo();
 
-        // Combine the two lists
-        QStringList allDrives = raid0Drives + raid1Drives;
-
-        // Print all drives
-        if (vb) {
-            qDebug() << "All Drives from Both Controllers:";
-            for (const QString &line : allDrives) {
-                qDebug() << line;
-            }
+        for (const DriveInfo& drive : drives) {
+            qDebug() << QString("Drive: %1:%2, SN: %3").arg(drive.eid).arg(drive.slot).arg(drive.serialNumber);
         }
 
         QVector<DiskInfo> disks = getRealHddInfo();
@@ -561,7 +617,16 @@ list_sdevices(int vb)
         if (vb) {
             qDebug() << "Detected Real HDDs:";
             for (const DiskInfo &disk : disks) {
-                qDebug() << "Name:" << disk.name << "WWN:" << disk.wwn << "Serial:" << disk.serial << "Model:" << disk.model;
+                qDebug() << "Name:" << disk.name << "WWN:" << disk.wwn << "SN:" << disk.serial << "Model:" << disk.model;
+            }
+        }
+
+        for (const DriveInfo& drive : drives) {
+            DiskInfo* disk = findDiskBySerial(disks, drive.serialNumber);
+            if (disk) {
+                gDevices.setSlot(drive.slot, QString("[%1:%2]").arg(drive.eid).arg(drive.slot), disk->wwn, disk->name);
+            } else {
+                gAppendMessage(QString("Drive %1:%2 with SN %3 not found in real HDDs!").arg(drive.eid).arg(drive.slot).arg(drive.serialNumber));
             }
         }
     }
