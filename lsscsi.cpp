@@ -629,6 +629,12 @@ list_sdevices(int vb)
                 gAppendMessage(QString("Drive %1:%2 with SN %3 not found in real HDDs!").arg(drive.eid).arg(drive.slot).arg(drive.serialNumber));
             }
         }
+
+        // Set dummy path for RAID controllers
+        const uint8_t raid_ids[] = {0x3F, 0x7F, 0xBF, 0xFF};
+        for (uint8_t id : raid_ids) {
+            gControllers.setBsgPath("dummy path for raid", id);
+        }
     }
 
     for (k = 0; k < num; ++k) {

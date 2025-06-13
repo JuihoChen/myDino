@@ -919,6 +919,10 @@ void Widget::tabSelected()
             ui->textInfo->append("HBA is 9500");
             break;
         }
+        if (cardType == ENUM_CARDTYPE::RAID9x60) {
+            ui->textInfo->append("RAID9x60 plug-in card");
+            break;
+        }
         ui->textInfo->append(get_infofacts());
         // Scroll QTextBrowser to the top
         QTextCursor cursor = ui->textInfo->textCursor();
