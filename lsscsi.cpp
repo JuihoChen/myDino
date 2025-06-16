@@ -602,18 +602,16 @@ list_sdevices(int vb)
     // If no devices found by methods of HBA9500/HBA9600, possibly a RAID card is present
     if (gControllers.count() == 0 && gDevices.count() == 0) {
         cardType = ENUM_CARDTYPE::RAID9x60;
-        if (vb) {
-            qDebug("re-enumerate SCSI devices as a RAID9x60 card is assumed present");
-        }
 
         QVector<DriveInfo> drives = getAllControllerDriveInfo();
-
-        for (const DriveInfo& drive : drives) {
-            qDebug() << QString("Drive: %1:%2, SN: %3").arg(drive.eid).arg(drive.slot).arg(drive.serialNumber);
+        if (vb) {
+            qDebug("re-enumerate SCSI devices as RAID9x60 cards assumed present");
+            for (const DriveInfo& drive : drives) {
+                qDebug() << QString("Drive: %1:%2, SN: %3").arg(drive.eid).arg(drive.slot).arg(drive.serialNumber);
+            }
         }
 
         QVector<DiskInfo> disks = getRealHddInfo();
-
         if (vb) {
             qDebug() << "Detected Real HDDs:";
             for (const DiskInfo &disk : disks) {
@@ -630,10 +628,15 @@ list_sdevices(int vb)
             }
         }
 
-        // Set dummy path for RAID controllers
-        const uint8_t raid_ids[] = {0x3F, 0x7F, 0xBF, 0xFF};
-        for (uint8_t id : raid_ids) {
-            gControllers.setBsgPath("dummy path for raid", id);
+        // If still no devices found by methods of a RAID card
+        if (gDevices.count() == 0) {
+            cardType = ENUM_CARDTYPE::UNKNOWN;
+        } else {
+            // Set dummy path for RAID controllers
+            const uint8_t raid_ids[] = {0x3F, 0x7F, 0xBF, 0xFF};
+            for (uint8_t id : raid_ids) {
+                gControllers.setBsgPath("dummy path for raid", id);
+            }
         }
     }
 

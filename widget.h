@@ -25,7 +25,8 @@ QT_END_NAMESPACE
 #define WWID_TO_INDEX(wwid) ((wwid & 0xFF) >> 6)
 
 typedef enum {
-    HBA9500 = 0,
+    UNKNOWN = 0,
+    HBA9500,
     HBA9600,
     RAID9x60
 } ENUM_CARDTYPE;
