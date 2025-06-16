@@ -595,6 +595,7 @@ list_sdevices(int vb)
                 gControllers.setController(namelist[k]->d_name, wwid);
             }
         } else if (cardType == ENUM_CARDTYPE::HBA9500) {
+            /* HBA9500 disk has enclosure_device:ArrayDevicexx, whereas HBA9600 disk has not */
             gDevices.setSlot(buff, name, enclosure_device.name);
         }
     }

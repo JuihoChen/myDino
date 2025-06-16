@@ -58,23 +58,23 @@ void DeviceFunc::setSlot(QString dir_name, QString device, int sl)
 {
     // validate the index passed
     if (sl == valiIndex(sl)) {
+        // Get wwid of this device (some BMC exposed "Virtual" devices does not have wwid attribute)
+        QString wwid, wd = dir_name.append("/%1").arg(device);
+        if (get_myValue(wd, "wwid", wwid) && !wwid.isEmpty()) {
 
-        // Set slot occupied by something
-        SlotInfo[sl].d_name = device;
+            SlotInfo[sl].wwid = wwid;
 
-        // Get wwid of this device
-        QString wd = dir_name.append("/%1").arg(device);
-        if (false == get_myValue(wd, "wwid", SlotInfo[sl].wwid)) {
-            SlotInfo[sl].wwid.clear();
+            // Set slot occupied by something
+            SlotInfo[sl].d_name = device;
+
+            // Get block name of this device
+            wd += "/block";
+            SlotInfo[sl].block = get_blockname(wd);
+
+            SlotInfo[sl].cb_slot->setEnabled(true);
+            setSlotLabel(sl);
+            myCount++;
         }
-
-        // Get block name of this device
-        wd += "/block";
-        SlotInfo[sl].block = get_blockname(wd);
-
-        SlotInfo[sl].cb_slot->setEnabled(true);
-        setSlotLabel(sl);
-        myCount++;
     }
 }
 
