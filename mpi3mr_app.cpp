@@ -521,15 +521,19 @@ static int get_all_tgt_info(smp_target_obj * top, int vb)
 /* Return: 0 on success, non-zero on failure. */
 static int issue_iocfacts(smp_target_obj * top, int vb)
 {
-    struct mpi3_ioc_facts_data facts_data;
-    smp_req_resp smp_rr;
-
-    memset(&facts_data, 0, sizeof(facts_data));
-    memset(&smp_rr, 0, sizeof(smp_rr));
+    /**
+     * Make reponse buffer large enough to hold the facts data
+     * and the additional 8 bytes adapting for RAID controller 9660
+     */
+    constexpr size_t FACTS_DATA_SIZE = sizeof(struct mpi3_ioc_facts_data);
+    constexpr size_t MAX_EXPECTED_SIZE = FACTS_DATA_SIZE + 8;
+    uint8_t response_buffer[MAX_EXPECTED_SIZE] = {0};
+    struct mpi3_ioc_facts_data & facts_data = *(struct mpi3_ioc_facts_data *) response_buffer;
+    smp_req_resp smp_rr = {0};
 
     smp_rr.mpi3mr_function = MPI3_FUNCTION_IOC_FACTS;
-    smp_rr.max_response_l = sizeof(facts_data);
-    smp_rr.response = (u8*) &facts_data;
+    smp_rr.max_response_l = sizeof(response_buffer);
+    smp_rr.response = response_buffer;
 
     int res = send_req_mpi3mr_bsg(top->fd, top->subvalue, top->sas_addr64, &smp_rr, vb);
     if (res) {
@@ -540,8 +544,8 @@ static int issue_iocfacts(smp_target_obj * top, int vb)
         qDebug("[send_req_mpi3mr_bsg] transport_error=%d", smp_rr.transport_err);
         return -1;
     }
-    if (smp_rr.act_response_l != sizeof(facts_data)) {
-        qDebug("[send_req_mpi3mr_bsg] ioc_facts data length mismatch");
+    if (smp_rr.act_response_l != MAX_EXPECTED_SIZE) {
+        qDebug("[send_req_mpi3mr_bsg] ioc_facts data length mismatch (%d > %zu)", smp_rr.act_response_l, MAX_EXPECTED_SIZE);
         return -1;
     }
 
@@ -563,6 +567,15 @@ static int issue_iocfacts(smp_target_obj * top, int vb)
     ioc_facts[ioc_cnt].fw_ver.gen_minor = facts_data.fw_version.gen_minor;
     ioc_facts[ioc_cnt].fw_ver.gen_major = facts_data.fw_version.gen_major;
 
+    /**
+     * Get the extra information (RAID controller 9660)
+     */
+    uint32_t * i32_cardInfo = (uint32_t *) (&facts_data + 1);
+    ioc_facts[ioc_cnt].card_info[0] = i32_cardInfo[0];
+    ioc_facts[ioc_cnt].card_info[1] = i32_cardInfo[1];
+    if (vb) {
+        qDebug("card_info=0x%08x 0x%08x", ioc_facts[ioc_cnt].card_info[0], ioc_facts[ioc_cnt].card_info[1]);
+    }
     return 0;
 }
 
@@ -995,10 +1008,11 @@ QString get_infofacts()
                     adpinfo[i].driver_info.driver_name, adpinfo[i].driver_info.driver_version);
         }
 
+        const char *p_card = ioc_facts[i].card_info[1] != 0 ? "RAID" : "HBA";
         struct mpi3mr_compimg_ver *fwver = &ioc_facts[i].fw_ver;
         struct mpi3_version_struct *mpiver = (struct mpi3_version_struct *) &ioc_facts[i].mpi_version;
-        s += QString::asprintf("HBA (PCIAddr %02X:%02X:%02X.%02X), Firmware Version: %d.%d.%d.%d-%05d-%05d, MPI Version: %d.%d\n",
-                adpinfo[i].pci_seg_id, adpinfo[i].pci_bus, adpinfo[i].pci_dev, adpinfo[i].pci_func,
+        s += QString::asprintf("%s (PCIAddr %02X:%02X:%02X.%02X), Firmware Version: %d.%d.%d.%d-%05d-%05d, MPI Version: %d.%d\n",
+                p_card, adpinfo[i].pci_seg_id, adpinfo[i].pci_bus, adpinfo[i].pci_dev, adpinfo[i].pci_func,
                 fwver->gen_major, fwver->gen_minor, fwver->ph_major, fwver->ph_minor, fwver->cust_id, fwver->build_num,
                 mpiver->major, mpiver->minor);
 

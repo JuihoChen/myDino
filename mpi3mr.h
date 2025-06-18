@@ -72,7 +72,8 @@ struct mpi3mr_ioc_facts {
     u16 io_throttle_data_length;
     u16 io_throttle_low;
     u16 io_throttle_high;
-
+    // The following is a 64-bit value porting the card information of RAID9660
+    u32 card_info[2];
 };
 
 #endif // MPI3MR_H
