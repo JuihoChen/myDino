@@ -292,7 +292,7 @@ Widget::Widget(QWidget *parent)
     gControllers.gbThe(3) = ui->groupBox_3;
 
     // Connect Widget signals to the related slots
-    connect(ui->cbxSlot, &QComboBox::currentIndexChanged, this, &Widget::cbxSlotIndexChanged);
+    connect(ui->cbxSlot, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &Widget::cbxSlotIndexChanged);
     connect(ui->btnRefresh, &QPushButton::clicked, this, &Widget::btnRefreshClicked);
     connect(ui->btnSelectAll, &QPushButton::clicked, this, &Widget::btnSelectAllClicked);
     connect(ui->btnListSdx, &QPushButton::clicked, this, &Widget::btnListSdxClicked);

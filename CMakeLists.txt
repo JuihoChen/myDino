@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10...4.0)
 
 project(myDino VERSION 0.1 LANGUAGES CXX)
 
